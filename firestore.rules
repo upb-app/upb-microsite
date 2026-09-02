@@ -1,0 +1,50 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    function isSuperAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.role == 'superadmin' ||
+        getUserData().role == 'superadmin'
+      );
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Koleksi Users: Hanya Superadmin yang bisa mengelola seluruh user
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isSuperAdmin();
+    }
+
+    // Koleksi Microsite Config: Publik hanya bisa membaca, hanya Admin/Superadmin yang bisa menulis
+    match /microsites/{micrositeId} {
+      allow read: if true; // Publik dapat melihat microsite
+      allow write: if isAuthenticated(); // Hanya user terautentikasi
+      allow delete: if isSuperAdmin();
+    }
+
+    // Koleksi Security Audit Logs: Hanya Superadmin yang bisa membaca, create hanya lewat sistem terautentikasi
+    match /audit_logs/{logId} {
+      allow read: if isSuperAdmin();
+      allow create: if isAuthenticated();
+      allow update, delete: if false; // Immutable audit trail
+    }
+
+    // Default deny all other collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

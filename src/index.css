@@ -1,0 +1,133 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    border-color: rgba(255, 255, 255, 0.12);
+  }
+  body {
+    background-color: #040b17;
+    color: #f8fafc;
+  }
+}
+
+/* Custom modern scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #040b17;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(30, 58, 138, 0.5);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #dc2626;
+}
+
+/* Button Animations */
+@keyframes buttonPulseRed {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.5);
+  }
+  50% {
+    transform: scale(1.02);
+    box-shadow: 0 0 0 8px rgba(220, 38, 38, 0);
+  }
+}
+
+@keyframes buttonFloat {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes buttonGlowRed {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(37, 99, 235, 0.3), inset 0 0 10px rgba(37, 99, 235, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(220, 38, 38, 0.6), inset 0 0 15px rgba(220, 38, 38, 0.3);
+  }
+}
+
+@keyframes buttonShimmerWhite {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes buttonBounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-6px);
+  }
+  60% {
+    transform: translateY(-3px);
+  }
+}
+
+.anim-pulse {
+  animation: buttonPulseRed 2.2s infinite ease-in-out;
+}
+
+.anim-float {
+  animation: buttonFloat 3s infinite ease-in-out;
+}
+
+.anim-glow {
+  animation: buttonGlowRed 2.5s infinite ease-in-out;
+}
+
+.anim-bounce {
+  animation: buttonBounce 2.5s infinite;
+}
+
+.anim-shimmer {
+  background-size: 200% auto;
+  animation: buttonShimmerWhite 3s linear infinite;
+}
+
+.anim-hover-scale {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.anim-hover-scale:hover {
+  transform: translateY(-3px) scale(1.015);
+}
+
+.anim-hover-slide {
+  transition: all 0.25s ease;
+}
+.anim-hover-slide:hover {
+  transform: translateX(4px);
+}
+
+/* Glassmorphism helpers for Navy + White */
+.glass-navy {
+  background: rgba(11, 29, 58, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.glass-card-white {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
