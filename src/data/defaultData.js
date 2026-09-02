@@ -4,8 +4,8 @@ export const DEFAULT_MICROSITE_DATA = {
     departmentName: "Portal Informasi Resmi & Layanan Terpadu",
     tagline: "Membangun Generasi Unggul Berkarakter & Berdaya Saing Global",
     bio: "Selamat datang di kanal resmi informasi akademik, admisi, dan layanan kemahasiswaan Universitas Pelita Bangsa.",
-    avatarUrl: "./img/logo-universitas-pelita-bangsa.png",
-    headerBannerUrl: "./img/upb-bg2.JPG",
+    avatarUrl: "/img/logo-universitas-pelita-bangsa.png",
+    headerBannerUrl: "/img/upb-bg2.JPG",
     showBanner: true,
     isVerified: true,
     badgeText: "Kampus Terakreditasi",
@@ -16,7 +16,7 @@ export const DEFAULT_MICROSITE_DATA = {
     bgType: "gradient", // 'solid', 'gradient', 'image', 'mesh'
     bgColor: "#071326",
     bgGradient: "from-[#040914] via-[#071326] to-[#0c2242]",
-    bgImageUrl: "./img/upb-bg2.JPG",
+    bgImageUrl: "/img/upb-bg2.JPG",
     bgOverlayOpacity: 75,
     bgBlur: "sm", // 'none', 'sm', 'md', 'lg'
     textColor: "#ffffff",

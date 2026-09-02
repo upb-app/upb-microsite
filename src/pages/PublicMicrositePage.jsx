@@ -187,7 +187,7 @@ export default function PublicMicrositePage({ site, onGoHome }) {
         <div className="relative mb-3 flex-shrink-0">
           <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-white p-1.5 shadow-2xl border-2 border-white/30 overflow-hidden ring-4 ring-black/20">
             <img 
-              src={profile.avatarUrl || './img/logo-universitas-pelita-bangsa.png'} 
+              src={profile.avatarUrl || '/img/logo-universitas-pelita-bangsa.png'} 
               alt={profile.title} 
               className="w-full h-full object-contain rounded-2xl"
             />

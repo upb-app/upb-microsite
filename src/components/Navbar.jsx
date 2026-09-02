@@ -54,7 +54,7 @@ export default function Navbar({
             isDark ? 'bg-white/10 border-white/20' : 'bg-slate-100 border-slate-200'
           }`}>
             <img 
-              src="./img/logo-universitas-pelita-bangsa.png" 
+              src="/img/logo-universitas-pelita-bangsa.png" 
               alt="Logo Universitas Pelita Bangsa" 
               className="w-full h-full object-contain rounded-lg"
             />

@@ -101,7 +101,7 @@ export default function HomePage() {
       category: 'karyawan',
       badge: 'Kuliah Sambil Kerja (HOT)',
       isHighlight: true,
-      image: './img/upb-bg2.JPG',
+      image: '/img/upb-bg2.JPG',
       desc: 'Dirancang khusus bagi pekerja industri agar tetap produktif dan berprestasi tanpa mengganggu jam kerja shift.',
       spp: 'SPP mulai Rp 550.000 / bln'
     },
@@ -110,7 +110,7 @@ export default function HomePage() {
       title: 'Program Kelas Reguler Akhir Pekan (Sabtu)',
       category: 'weekend',
       badge: 'Fleksibel Weekend',
-      image: './img/upb-bg.JPG',
+      image: '/img/upb-bg.JPG',
       desc: 'Perkuliahan fleksibel di hari Sabtu dengan metode hybrid learning bagi profesional dan pekerja pabrik.',
       spp: 'SPP mulai Rp 650.000 / bln'
     }
@@ -177,7 +177,7 @@ export default function HomePage() {
           <div className="flex items-center gap-2.5 sm:gap-3 group cursor-pointer" onClick={() => setActiveView('hero')}>
             <div className="w-8 h-8 sm:w-9 sm:h-9 lg:w-10 lg:h-10 rounded-xl sm:rounded-2xl bg-white dark:bg-white/10 p-1 sm:p-1.5 shadow-md border border-slate-200 dark:border-white/15 flex items-center justify-center flex-shrink-0 overflow-hidden">
               <img 
-                src="./img/logo-universitas-pelita-bangsa.png" 
+                src="/img/logo-universitas-pelita-bangsa.png" 
                 alt="Logo Universitas Pelita Bangsa" 
                 className="w-full h-full object-contain rounded-lg"
               />
@@ -295,7 +295,7 @@ export default function HomePage() {
             {/* Real Campus Background Image */}
             <div className="absolute inset-0 z-0">
               <img 
-                src="./img/upb-bg2.JPG" 
+                src="/img/upb-bg2.JPG" 
                 alt="Universitas Pelita Bangsa" 
                 className="w-full h-full object-cover object-center"
               />

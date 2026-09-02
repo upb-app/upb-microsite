@@ -368,7 +368,11 @@ function MainAppContent() {
           isOpen={true}
           onClose={() => navigateTo('home')}
           onSuccessLogin={() => {
-            window.location.hash = '/dasbor';
+            if (window.history.pushState) {
+              window.history.pushState(null, '', '/dasbor');
+            } else {
+              window.location.hash = '/dasbor';
+            }
             setRoute('dashboard');
           }}
         />
