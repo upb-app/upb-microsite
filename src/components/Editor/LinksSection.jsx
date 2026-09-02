@@ -43,9 +43,10 @@ const QUICK_TEMPLATES = [
   { title: 'Download Buku Panduan Akademik', subtitle: 'Pedoman kurikulum & jadwal kuliah PDF', icon: 'Download', badge: 'PDF', badgeColor: 'bg-purple-600 text-white', animation: 'anim-hover-scale', highlight: false },
 ];
 
-export default function LinksSection({ links, setLinks }) {
+export default function LinksSection({ links = [], setLinks }) {
+  const safeLinks = Array.isArray(links) ? links : [];
   const [activeIconPicker, setActiveIconPicker] = useState(null); // link id or null
-  const [expandedLinkId, setExpandedLinkId] = useState(links[0]?.id || null);
+  const [expandedLinkId, setExpandedLinkId] = useState(safeLinks[0]?.id || null);
 
   const handleAddLink = (template = null) => {
     const newId = `link-${Date.now()}`;
@@ -73,22 +74,22 @@ export default function LinksSection({ links, setLinks }) {
       clicks: 0
     };
 
-    setLinks([...links, newLink]);
+    setLinks([...safeLinks, newLink]);
     setExpandedLinkId(newId);
   };
 
   const handleUpdateLink = (id, field, value) => {
-    setLinks(links.map(l => l.id === id ? { ...l, [field]: value } : l));
+    setLinks(safeLinks.map(l => l.id === id ? { ...l, [field]: value } : l));
   };
 
   const handleDeleteLink = (id) => {
-    setLinks(links.filter(l => l.id !== id));
+    setLinks(safeLinks.filter(l => l.id !== id));
   };
 
   const handleMoveLink = (index, direction) => {
     const targetIndex = index + direction;
-    if (targetIndex < 0 || targetIndex >= links.length) return;
-    const updated = [...links];
+    if (targetIndex < 0 || targetIndex >= safeLinks.length) return;
+    const updated = [...safeLinks];
     const temp = updated[index];
     updated[index] = updated[targetIndex];
     updated[targetIndex] = temp;
@@ -105,7 +106,7 @@ export default function LinksSection({ links, setLinks }) {
             <span className="p-2 bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-xl">
               <LinkIcon className="w-4 h-4" />
             </span>
-            Daftar Tombol & Tautan Microsite ({links.length})
+            Daftar Tombol & Tautan Microsite ({safeLinks.length})
           </h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Kelola tombol aksi, icon animasi, dan label badge</p>
         </div>
@@ -140,7 +141,6 @@ export default function LinksSection({ links, setLinks }) {
                 <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate group-hover:text-amber-600 dark:group-hover:text-amber-300">{tmpl.title}</p>
                 <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">{tmpl.subtitle}</p>
               </div>
-              <Plus className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-600" />
             </button>
           ))}
         </div>
@@ -148,7 +148,7 @@ export default function LinksSection({ links, setLinks }) {
 
       {/* Links Accordion List */}
       <div className="space-y-3">
-        {links.map((link, index) => {
+        {safeLinks.map((link, index) => {
           const isExpanded = expandedLinkId === link.id;
 
           return (

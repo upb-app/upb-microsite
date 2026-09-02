@@ -25,7 +25,9 @@ const SOCIAL_FIELDS = [
   { key: 'spotify', label: 'Spotify Podcast Kampus', placeholder: 'https://open.spotify.com/show/...', icon: SpotifyIcon, color: 'text-green-500' },
 ];
 
-export default function SocialSection({ socials, updateSocials }) {
+export default function SocialSection({ socials = {}, updateSocials }) {
+  const s = socials || {};
+
   return (
     <div className="p-4 sm:p-5 space-y-5 animate-fadeIn text-left">
       
@@ -52,43 +54,49 @@ export default function SocialSection({ socials, updateSocials }) {
               type="button"
               onClick={() => updateSocials('position', pos.id)}
               className={`p-2.5 rounded-xl border text-center transition ${
-                socials.position === pos.id || (!socials.position && pos.id === 'bottom')
+                s.position === pos.id || (!s.position && pos.id === 'bottom')
                   ? 'bg-amber-400 text-slate-950 border-amber-500 font-bold shadow-sm'
                   : 'bg-white dark:bg-slate-900/80 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700/60 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
             >
               <span className="text-xs block font-bold">{pos.label}</span>
-              <span className="text-[10px] opacity-75">{pos.desc}</span>
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 block">{pos.desc}</span>
             </button>
           ))}
         </div>
       </div>
 
-      {/* 2. Social Links Input List */}
+      {/* 2. Form Tautan Akun Sosial Media */}
       <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 space-y-3.5">
-        <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Kanal Media Sosial Resmi</h3>
-        <p className="text-xs text-slate-500 dark:text-slate-400 -mt-1.5">Kosongkan kolom yang tidak ingin ditampilkan pada microsite.</p>
+        <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Tautan Akun Resmi Universitas</h3>
 
-        <div className="space-y-3 pt-1">
+        <div className="space-y-3">
           {SOCIAL_FIELDS.map((field) => {
-            const Icon = field.icon;
-            const value = socials[field.key] || '';
-
+            const IconComponent = field.icon;
             return (
               <div key={field.key} className="space-y-1">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                  <span className={`p-1 bg-white dark:bg-slate-900 rounded-lg ${field.color} border border-slate-200 dark:border-slate-700/60 shadow-2xs`}>
-                    <Icon className="w-3.5 h-3.5" />
-                  </span>
-                  {field.label}
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <IconComponent className={`w-3.5 h-3.5 ${field.color}`} />
+                  <span>{field.label}</span>
                 </label>
-                <input
-                  type="text"
-                  value={value}
-                  onChange={(e) => updateSocials(field.key, e.target.value)}
-                  placeholder={field.placeholder}
-                  className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-amber-500 transition font-mono"
-                />
+                <div className="relative">
+                  <input
+                    type="url"
+                    value={s[field.key] || ''}
+                    onChange={(e) => updateSocials(field.key, e.target.value)}
+                    placeholder={field.placeholder}
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-200 focus:outline-none focus:border-amber-500 transition"
+                  />
+                  {s[field.key] && (
+                    <button
+                      type="button"
+                      onClick={() => updateSocials(field.key, '')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 hover:text-red-500"
+                    >
+                      Hapus
+                    </button>
+                  )}
+                </div>
               </div>
             );
           })}

@@ -29,7 +29,9 @@ const AVATAR_PRESETS = [
   { label: 'Organisasi Mahasiswa', url: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=300&auto=format&fit=crop&q=80' },
 ];
 
-export default function ProfileSection({ profile, updateProfile }) {
+export default function ProfileSection({ profile = {}, updateProfile }) {
+  const p = profile || {};
+
   const handleBannerUpload = (e) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -52,6 +54,9 @@ export default function ProfileSection({ profile, updateProfile }) {
     }
   };
 
+  const bannerPreview = normalizeImageUrl(p.headerBannerUrl || p.bannerUrl, DEFAULT_BANNER);
+  const avatarPreview = normalizeImageUrl(p.avatarUrl, DEFAULT_LOGO);
+
   return (
     <div className="p-4 sm:p-5 space-y-5 animate-fadeIn text-left">
       
@@ -69,26 +74,27 @@ export default function ProfileSection({ profile, updateProfile }) {
           </div>
           <button
             type="button"
-            onClick={() => updateProfile('showBanner', !profile.showBanner)}
+            onClick={() => updateProfile('showBanner', !p.showBanner)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
-              profile.showBanner 
+              p.showBanner 
                 ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/40' 
                 : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
             }`}
           >
-            {profile.showBanner ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-            {profile.showBanner ? 'Tampilkan' : 'Sembunyikan'}
+            {p.showBanner ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+            {p.showBanner ? 'Tampilkan' : 'Sembunyikan'}
           </button>
         </div>
 
-        {profile.showBanner && (
+        {p.showBanner !== false && (
           <div className="space-y-3 pt-1">
             {/* Preview Banner */}
             <div className="relative w-full h-28 rounded-xl overflow-hidden bg-slate-200 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 group">
               <img 
-                src={profile.headerBannerUrl || BANNER_PRESETS[0].url} 
+                src={bannerPreview} 
                 alt="Banner Preview" 
                 className="w-full h-full object-cover"
+                onError={(e) => { e.target.src = DEFAULT_BANNER; }}
               />
               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
                 <label className="cursor-pointer px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-lg">
@@ -104,7 +110,7 @@ export default function ProfileSection({ profile, updateProfile }) {
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">URL Gambar Banner</label>
               <input
                 type="text"
-                value={profile.headerBannerUrl || ''}
+                value={p.headerBannerUrl || ''}
                 onChange={(e) => updateProfile('headerBannerUrl', e.target.value)}
                 placeholder="https://..."
                 className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-200 focus:outline-none focus:border-amber-500 transition"
@@ -115,14 +121,17 @@ export default function ProfileSection({ profile, updateProfile }) {
             <div>
               <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1.5">Pilihan Gambar Banner Cepat:</label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {BANNER_PRESETS.map((p, idx) => (
+                {BANNER_PRESETS.map((preset, idx) => (
                   <button
                     key={idx}
                     type="button"
-                    onClick={() => updateProfile('headerBannerUrl', p.url)}
-                    className="p-1.5 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-700/80 border border-slate-200 dark:border-slate-700/50 rounded-lg text-[11px] text-slate-700 dark:text-slate-300 truncate text-left transition hover:border-amber-500 shadow-2xs"
+                    onClick={() => updateProfile('headerBannerUrl', preset.url)}
+                    className="p-2 bg-white dark:bg-slate-900/80 hover:bg-amber-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-left text-xs font-medium text-slate-700 dark:text-slate-300 transition flex items-center gap-2 group"
                   >
-                    {p.label}
+                    <div className="w-5 h-5 rounded-md bg-slate-200 dark:bg-slate-700 overflow-hidden flex-shrink-0">
+                      <img src={preset.url} alt="" className="w-full h-full object-cover" />
+                    </div>
+                    <span className="truncate">{preset.label}</span>
                   </button>
                 ))}
               </div>
@@ -131,178 +140,170 @@ export default function ProfileSection({ profile, updateProfile }) {
         )}
       </div>
 
-      {/* 2. Avatar / Logo Identitas */}
+      {/* 2. Logo / Avatar Kampus */}
       <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 space-y-3.5">
         <div className="flex items-center gap-2">
           <span className="p-2 bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-xl">
             <Building2 className="w-4 h-4" />
           </span>
           <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Logo / Foto Profil</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Lambang institusi, prodi, ormawa, atau foto dosen</p>
+            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Logo & Foto Profil</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Identitas visual lambang universitas atau foto ketua program</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="relative w-20 h-20 rounded-2xl overflow-hidden bg-white dark:bg-slate-900 border-2 border-amber-500/60 flex-shrink-0 shadow-md p-1 group flex items-center justify-center">
+        <div className="flex flex-col sm:flex-row items-center gap-4">
+          <div className="relative w-20 h-20 rounded-2xl overflow-hidden bg-white p-1 border-2 border-slate-300 dark:border-slate-600 shadow-md flex-shrink-0 group">
             <img 
-              src={profile.avatarUrl || AVATAR_PRESETS[0].url} 
-              alt="Avatar" 
+              src={avatarPreview} 
+              alt="Avatar Preview" 
               className="w-full h-full object-contain rounded-xl"
+              onError={(e) => { e.target.src = DEFAULT_LOGO; }}
             />
-            <label className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex items-center justify-center cursor-pointer rounded-2xl">
-              <Upload className="w-5 h-5 text-amber-400" />
+            <label className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center cursor-pointer text-white">
+              <Upload className="w-4 h-4" />
               <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
             </label>
           </div>
 
-          <div className="flex-1 space-y-2">
+          <div className="flex-1 w-full space-y-2">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">URL Foto / Logo</label>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">URL Logo / Foto</label>
               <input
                 type="text"
-                value={profile.avatarUrl || ''}
+                value={p.avatarUrl || ''}
                 onChange={(e) => updateProfile('avatarUrl', e.target.value)}
-                placeholder="https://..."
+                placeholder="/img/logo-universitas-pelita-bangsa.png"
                 className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-200 focus:outline-none focus:border-amber-500 transition"
               />
             </div>
-            <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 rounded-lg text-xs font-semibold cursor-pointer transition">
-              <Upload className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-              Upload dari Komputer
-              <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
-            </label>
           </div>
         </div>
 
-        {/* Avatar presets */}
+        {/* Quick Avatar Presets */}
         <div>
-          <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1.5">Preset Logo & Profil:</label>
-          <div className="flex flex-wrap gap-2">
-            {AVATAR_PRESETS.map((a, idx) => (
+          <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1.5">Pilihan Logo / Avatar Cepat:</label>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {AVATAR_PRESETS.map((preset, idx) => (
               <button
                 key={idx}
                 type="button"
-                onClick={() => updateProfile('avatarUrl', a.url)}
-                className="px-2.5 py-1 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700/60 rounded-lg text-[11px] text-slate-700 dark:text-slate-300 transition hover:border-amber-500 shadow-2xs"
+                onClick={() => updateProfile('avatarUrl', preset.url)}
+                className="p-2 bg-white dark:bg-slate-900/80 hover:bg-amber-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-left text-xs font-medium text-slate-700 dark:text-slate-300 transition flex items-center gap-2"
               >
-                {a.label}
+                <div className="w-5 h-5 rounded-md bg-slate-200 dark:bg-slate-700 overflow-hidden flex-shrink-0">
+                  <img src={preset.url} alt="" className="w-full h-full object-cover" />
+                </div>
+                <span className="truncate">{preset.label}</span>
               </button>
             ))}
           </div>
         </div>
       </div>
 
-      {/* 3. Identitas & Teks Universitas */}
+      {/* 3. Teks Informasi Kampus */}
       <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 space-y-3.5">
-        <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+        <div className="flex items-center gap-2">
           <span className="p-2 bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-xl">
             <Sparkles className="w-4 h-4" />
           </span>
-          Informasi & Deskripsi Microsite
-        </h3>
+          <div>
+            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Informasi & Deskripsi</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Nama universitas, fakultas, slogan, dan pengantar profil</p>
+          </div>
+        </div>
 
         <div className="space-y-3">
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Nama Universitas / Institusi</label>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Nama Universitas / Lembaga</label>
             <input
               type="text"
-              value={profile.universityName || ''}
+              value={p.universityName || p.title || ''}
               onChange={(e) => updateProfile('universityName', e.target.value)}
               placeholder="UNIVERSITAS PELITA BANGSA"
-              className="w-full px-3.5 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-100 font-semibold focus:outline-none focus:border-amber-500 transition"
+              className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-500 transition"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Unit / Fakultas / Judul Microsite</label>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Nama Fakultas / Unit / Departemen</label>
             <input
               type="text"
-              value={profile.departmentName || ''}
+              value={p.departmentName || p.tagline || ''}
               onChange={(e) => updateProfile('departmentName', e.target.value)}
-              placeholder="Contoh: Penerimaan Mahasiswa Baru (PMB) / Fakultas Teknik"
-              className="w-full px-3.5 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-500 transition"
+              placeholder="Fakultas Teknik / Pusat Admisi PMB"
+              className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-200 focus:outline-none focus:border-amber-500 transition"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Tagline / Slogan Kampus</label>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Tagline / Slogan</label>
             <input
               type="text"
-              value={profile.tagline || ''}
+              value={p.tagline || ''}
               onChange={(e) => updateProfile('tagline', e.target.value)}
-              placeholder="Membangun Generasi Unggul Berkarakter..."
-              className="w-full px-3.5 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-500 transition"
+              placeholder="Membangun Generasi Unggul Berkarakter & Berdaya Saing Global"
+              className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-200 focus:outline-none focus:border-amber-500 transition"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Bio / Deskripsi Singkat</label>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Biografi & Pengantar Singkat</label>
             <textarea
               rows={3}
-              value={profile.bio || ''}
+              value={p.bio || ''}
               onChange={(e) => updateProfile('bio', e.target.value)}
-              placeholder="Deskripsi layanan atau pengantar microsite..."
-              className="w-full px-3.5 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-500 transition resize-none"
+              placeholder="Tuliskan keterangan singkat mengenai profil dan keunggulan unit kampus..."
+              className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-200 focus:outline-none focus:border-amber-500 transition"
             />
           </div>
 
-          {/* Verified Badge & Tag */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-            <div className="p-3 bg-white dark:bg-slate-900/80 rounded-xl border border-slate-200 dark:border-slate-700/60 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <BadgeCheck className="w-4 h-4 text-amber-500" />
-                <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">Centang Terverifikasi</span>
-              </div>
-              <input
-                type="checkbox"
-                checked={!!profile.isVerified}
-                onChange={(e) => updateProfile('isVerified', e.target.checked)}
-                className="w-4 h-4 rounded text-amber-500 focus:ring-amber-500 bg-white dark:bg-slate-950 border-slate-300 dark:border-slate-700 cursor-pointer"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Teks Badge (Pill Akreditasi)</label>
-              <input
-                type="text"
-                value={profile.badgeText || ''}
-                onChange={(e) => updateProfile('badgeText', e.target.value)}
-                placeholder="Contoh: Kampus Terakreditasi Unggul"
-                className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-500 transition"
-              />
-            </div>
-          </div>
-
-          {/* Location & Email */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1 flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5 text-amber-500" />
-                Lokasi Kampus
+                <MapPin className="w-3 h-3 text-red-500" /> Lokasi Kampus
               </label>
               <input
                 type="text"
-                value={profile.location || ''}
+                value={p.location || ''}
                 onChange={(e) => updateProfile('location', e.target.value)}
-                placeholder="Cikarang Pusat, Bekasi"
-                className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-500 transition"
+                placeholder="Cikarang Pusat, Kab. Bekasi"
+                className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-200 focus:outline-none focus:border-amber-500 transition"
               />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1 flex items-center gap-1">
-                <Mail className="w-3.5 h-3.5 text-blue-500" />
-                Email Resmi
+                <Mail className="w-3 h-3 text-blue-500" /> Email Resmi
               </label>
               <input
                 type="email"
-                value={profile.email || ''}
+                value={p.email || ''}
                 onChange={(e) => updateProfile('email', e.target.value)}
                 placeholder="humas@pelitabangsa.ac.id"
-                className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-500 transition"
+                className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-200 focus:outline-none focus:border-amber-500 transition"
               />
             </div>
+          </div>
+
+          {/* Verified Account Switch */}
+          <div className="pt-2 border-t border-slate-200 dark:border-slate-700/60 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <BadgeCheck className="w-4 h-4 text-blue-600" />
+              <div>
+                <span className="text-xs font-bold text-slate-900 dark:text-slate-100 block">Lencana Akun Resmi (Verified Badge)</span>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">Tampilkan centang biru terverifikasi di samping logo</span>
+              </div>
+            </div>
+            <input
+              type="checkbox"
+              checked={p.isVerified !== false && p.verified !== false}
+              onChange={(e) => {
+                updateProfile('isVerified', e.target.checked);
+                updateProfile('verified', e.target.checked);
+              }}
+              className="w-4 h-4 accent-blue-600 cursor-pointer rounded"
+            />
           </div>
 
         </div>

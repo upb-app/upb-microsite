@@ -58,7 +58,10 @@ const FONTS = [
   { id: 'mono', label: 'JetBrains Mono (Teknologi & Komputer)', class: 'font-mono' },
 ];
 
-export default function DesignSection({ theme, updateTheme, buttonStyle, updateButtonStyle }) {
+export default function DesignSection({ theme = {}, updateTheme, buttonStyle = {}, updateButtonStyle }) {
+  const t = theme || {};
+  const b = buttonStyle || {};
+
   const handleBgImageUpload = (e) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -99,7 +102,7 @@ export default function DesignSection({ theme, updateTheme, buttonStyle, updateB
               type="button"
               onClick={() => updateTheme('bgType', type.id)}
               className={`p-2.5 rounded-xl text-xs font-bold border transition ${
-                theme.bgType === type.id
+                (t.bgType || 'gradient') === type.id
                   ? 'bg-amber-400 text-slate-950 border-amber-500 shadow-sm'
                   : 'bg-white dark:bg-slate-900/80 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700/60 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
@@ -109,10 +112,10 @@ export default function DesignSection({ theme, updateTheme, buttonStyle, updateB
           ))}
         </div>
 
-        {/* Dynamic Controls based on bgType */}
-        {theme.bgType === 'gradient' && (
-          <div className="space-y-3 pt-1">
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">Pilihan Gradasi Universitas:</label>
+        {/* Dynamic Controls based on Background Type */}
+        {(t.bgType === 'gradient' || t.bgType === 'mesh' || !t.bgType) && (
+          <div className="space-y-2 pt-2">
+            <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400">Pilih Preset Gradasi Kampus:</label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {GRADIENT_PRESETS.map((grad, idx) => (
                 <button
@@ -120,133 +123,106 @@ export default function DesignSection({ theme, updateTheme, buttonStyle, updateB
                   type="button"
                   onClick={() => updateTheme('bgGradient', grad.value)}
                   className={`p-2 rounded-xl border text-left flex items-center gap-2 transition ${
-                    theme.bgGradient === grad.value
-                      ? 'border-amber-500 ring-2 ring-amber-500/30 bg-white dark:bg-slate-900 shadow-sm'
-                      : 'border-slate-200 dark:border-slate-700/60 bg-white dark:bg-slate-900/60 hover:border-slate-400'
+                    t.bgGradient === grad.value
+                      ? 'border-amber-500 ring-2 ring-amber-500/30 bg-amber-500/10'
+                      : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 hover:bg-slate-100'
                   }`}
                 >
-                  <div className={`w-6 h-6 rounded-lg ${grad.color} border border-white/20 flex-shrink-0 shadow-2xs`} />
-                  <span className="text-[11px] text-slate-800 dark:text-slate-200 font-medium truncate">{grad.label}</span>
+                  <div className={`w-6 h-6 rounded-lg ${grad.color} border border-white/20 flex-shrink-0`} />
+                  <span className="text-xs font-medium text-slate-700 dark:text-slate-300 truncate">{grad.label}</span>
                 </button>
               ))}
             </div>
           </div>
         )}
 
-        {theme.bgType === 'image' && (
-          <div className="space-y-3.5 pt-1">
+        {t.bgType === 'image' && (
+          <div className="space-y-3 pt-2">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">URL Gambar Latar</label>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">URL Gambar Latar Belakang</label>
               <input
                 type="text"
-                value={theme.bgImageUrl || ''}
+                value={t.bgImageUrl || ''}
                 onChange={(e) => updateTheme('bgImageUrl', e.target.value)}
                 placeholder="https://..."
-                className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-500 transition"
+                className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-200 focus:outline-none focus:border-amber-500 transition"
               />
             </div>
 
-            <div className="flex items-center gap-2">
-              <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 rounded-lg text-xs font-semibold cursor-pointer transition">
-                <Upload className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                Upload Background Sendiri
-                <input type="file" accept="image/*" onChange={handleBgImageUpload} className="hidden" />
-              </label>
-            </div>
-
-            {/* Background Presets */}
             <div>
               <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1.5">Preset Foto Kampus:</label>
               <div className="grid grid-cols-2 gap-2">
-                {BACKGROUND_IMAGES.map((img, idx) => (
+                {BACKGROUND_IMAGES.map((bg, idx) => (
                   <button
                     key={idx}
                     type="button"
-                    onClick={() => updateTheme('bgImageUrl', img.url)}
-                    className="p-1.5 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-700/80 border border-slate-200 dark:border-slate-700/60 rounded-lg text-[11px] text-slate-700 dark:text-slate-300 truncate text-left transition hover:border-amber-500 shadow-2xs"
+                    onClick={() => updateTheme('bgImageUrl', bg.url)}
+                    className="p-2 bg-white dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-left text-xs font-medium text-slate-700 dark:text-slate-300 transition flex items-center gap-2"
                   >
-                    {img.label}
+                    <div className="w-6 h-6 rounded-md bg-slate-200 overflow-hidden flex-shrink-0">
+                      <img src={bg.url} alt="" className="w-full h-full object-cover" />
+                    </div>
+                    <span className="truncate">{bg.label}</span>
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Opacity & Blur Sliders */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-              <div className="bg-white dark:bg-slate-900/60 p-3 rounded-xl border border-slate-200 dark:border-slate-700/60">
-                <div className="flex justify-between text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  <span>Kegelapan Overlay (Dim)</span>
-                  <span className="text-amber-600 dark:text-amber-400 font-bold">{theme.bgOverlayOpacity ?? 75}%</span>
-                </div>
-                <input
-                  type="range"
-                  min="20"
-                  max="95"
-                  value={theme.bgOverlayOpacity ?? 75}
-                  onChange={(e) => updateTheme('bgOverlayOpacity', Number(e.target.value))}
-                  className="w-full accent-amber-500 cursor-pointer"
-                />
+            {/* Overlay Opacity Slider */}
+            <div>
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                <span>Kegelapan Lapisan Latar (Overlay Darkening)</span>
+                <span className="font-mono text-amber-600 dark:text-amber-400">{t.bgOverlayOpacity ?? 75}%</span>
               </div>
-
-              <div className="bg-white dark:bg-slate-900/60 p-3 rounded-xl border border-slate-200 dark:border-slate-700/60">
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Efek Blur Latar</label>
-                <div className="flex gap-2">
-                  {['none', 'sm', 'md', 'lg'].map(b => (
-                    <button
-                      key={b}
-                      type="button"
-                      onClick={() => updateTheme('bgBlur', b)}
-                      className={`flex-1 py-1 rounded-lg text-xs font-bold uppercase transition ${
-                        theme.bgBlur === b
-                          ? 'bg-amber-400 text-slate-950 shadow-2xs'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
-                      }`}
-                    >
-                      {b}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <input
+                type="range"
+                min="0"
+                max="95"
+                step="5"
+                value={t.bgOverlayOpacity ?? 75}
+                onChange={(e) => updateTheme('bgOverlayOpacity', Number(e.target.value))}
+                className="w-full accent-amber-500 cursor-pointer"
+              />
             </div>
           </div>
         )}
 
-        {theme.bgType === 'solid' && (
-          <div className="space-y-3 pt-1">
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Pilih Warna Solid</label>
+        {t.bgType === 'solid' && (
+          <div className="space-y-2 pt-2">
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">Pilih Warna Solid</label>
             <div className="flex items-center gap-3">
               <input
                 type="color"
-                value={theme.bgColor || '#0f172a'}
+                value={t.bgColor || '#071326'}
                 onChange={(e) => updateTheme('bgColor', e.target.value)}
-                className="w-10 h-10 rounded-xl bg-transparent cursor-pointer border border-slate-300 dark:border-slate-700"
+                className="w-10 h-10 rounded-xl border border-slate-300 dark:border-slate-700 cursor-pointer p-0.5 bg-transparent"
               />
               <input
                 type="text"
-                value={theme.bgColor || '#0f172a'}
+                value={t.bgColor || '#071326'}
                 onChange={(e) => updateTheme('bgColor', e.target.value)}
-                className="w-36 px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-100 font-mono"
+                className="px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-mono font-bold text-slate-900 dark:text-slate-200 focus:outline-none focus:border-amber-500 transition uppercase"
               />
             </div>
           </div>
         )}
       </div>
 
-      {/* 2. Button Styling & Animations */}
+      {/* 2. Button Styling */}
       <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 space-y-3.5">
         <div className="flex items-center gap-2">
           <span className="p-2 bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-xl">
             <MousePointer className="w-4 h-4" />
           </span>
           <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Gaya & Animasi Tombol (Global)</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Atur bentuk tombol, visual glassmorphism, dan animasi bawaan</p>
+            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Gaya Tombol & Tautan (Buttons)</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Pilih bentuk kelengkungan, efek material, dan animasi tombol</p>
           </div>
         </div>
 
-        {/* Button Style Variant */}
+        {/* Variant */}
         <div>
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">Gaya Visual Tombol</label>
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">Gaya Visual Material Tombol:</label>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {BUTTON_VARIANTS.map((v) => (
               <button
@@ -254,34 +230,34 @@ export default function DesignSection({ theme, updateTheme, buttonStyle, updateB
                 type="button"
                 onClick={() => updateButtonStyle('variant', v.id)}
                 className={`p-3 rounded-xl border text-left transition ${
-                  buttonStyle.variant === v.id
-                    ? 'border-amber-500 bg-amber-50 dark:bg-amber-500/10 ring-1 ring-amber-500 shadow-sm'
-                    : 'border-slate-200 dark:border-slate-700/60 bg-white dark:bg-slate-900/60 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  (b.variant || 'glass') === v.id
+                    ? 'bg-amber-400 text-slate-950 border-amber-500 font-bold shadow-sm'
+                    : 'bg-white dark:bg-slate-900/80 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700/60 hover:bg-slate-100 dark:hover:bg-slate-800'
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-900 dark:text-slate-100">{v.label}</span>
-                  {buttonStyle.variant === v.id && <Check className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />}
-                </div>
-                <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">{v.desc}</p>
+                <div className="font-bold text-xs">{v.label}</div>
+                <div className="text-[11px] opacity-80 mt-0.5">{v.desc}</div>
               </button>
             ))}
           </div>
         </div>
 
-        {/* Rounded Shapes */}
+        {/* Shape Rounded */}
         <div>
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Bentuk Sudut Tombol (Roundness)</label>
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">Bentuk Sudut Tombol (Corner Radius):</label>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {ROUNDED_OPTIONS.map((r) => (
               <button
                 key={r.id}
                 type="button"
-                onClick={() => updateButtonStyle('rounded', r.id)}
-                className={`p-2 rounded-xl text-xs font-bold border transition ${
-                  buttonStyle.rounded === r.id
-                    ? 'bg-amber-400 text-slate-950 border-amber-500 shadow-2xs'
-                    : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700/60 hover:bg-slate-100'
+                onClick={() => {
+                  updateButtonStyle('rounded', r.id);
+                  updateButtonStyle('shape', r.id);
+                }}
+                className={`p-2.5 rounded-xl border text-center text-xs font-bold transition ${
+                  (b.rounded || b.shape || 'rounded-2xl') === r.id
+                    ? 'bg-blue-600 text-white border-blue-700 shadow-sm'
+                    : 'bg-white dark:bg-slate-900/80 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700/60 hover:bg-slate-100 dark:hover:bg-slate-800'
                 }`}
               >
                 {r.label}
@@ -292,28 +268,35 @@ export default function DesignSection({ theme, updateTheme, buttonStyle, updateB
 
         {/* Global Animation */}
         <div>
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Animasi Default Semua Tombol</label>
-          <select
-            value={buttonStyle.animation || 'anim-hover-scale'}
-            onChange={(e) => updateButtonStyle('animation', e.target.value)}
-            className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-200 focus:outline-none focus:border-amber-500 transition"
-          >
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">Animasi Standar Tombol:</label>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {GLOBAL_ANIMATIONS.map((anim) => (
-              <option key={anim.id} value={anim.id}>{anim.label}</option>
+              <button
+                key={anim.id}
+                type="button"
+                onClick={() => updateButtonStyle('animation', anim.id)}
+                className={`p-2 rounded-xl border text-center text-xs font-medium transition ${
+                  (b.animation || 'anim-hover-scale') === anim.id
+                    ? 'bg-amber-400 text-slate-950 border-amber-500 font-bold shadow-sm'
+                    : 'bg-white dark:bg-slate-900/80 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700/60 hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                {anim.label}
+              </button>
             ))}
-          </select>
+          </div>
         </div>
       </div>
 
-      {/* 3. Tipografi / Font */}
-      <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 space-y-3.5">
+      {/* 3. Typography Font Family */}
+      <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 space-y-3">
         <div className="flex items-center gap-2">
-          <span className="p-2 bg-purple-500/20 text-purple-600 dark:text-purple-400 rounded-xl">
+          <span className="p-2 bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded-xl">
             <Type className="w-4 h-4" />
           </span>
           <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Tipografi & Gaya Tulisan</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Pilih font yang sesuai dengan karakter universitas atau fakultas</p>
+            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Gaya Tipografi Font</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Pilihan jenis huruf font universitas</p>
           </div>
         </div>
 
@@ -323,19 +306,14 @@ export default function DesignSection({ theme, updateTheme, buttonStyle, updateB
               key={font.id}
               type="button"
               onClick={() => updateTheme('fontFamily', font.id)}
-              className={`p-3 rounded-xl border text-left transition ${
-                theme.fontFamily === font.id
-                  ? 'border-amber-500 bg-amber-50 dark:bg-amber-500/10 ring-1 ring-amber-500 shadow-sm'
-                  : 'border-slate-200 dark:border-slate-700/60 bg-white dark:bg-slate-900/60 hover:bg-slate-100'
+              className={`p-3 rounded-xl border text-left transition ${font.class} ${
+                (t.fontFamily || 'sans') === font.id
+                  ? 'bg-amber-400 text-slate-950 border-amber-500 font-bold shadow-sm'
+                  : 'bg-white dark:bg-slate-900/80 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700/60 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
             >
-              <div className="flex items-center justify-between mb-1">
-                <span className={`text-xs font-bold text-slate-900 dark:text-slate-100 ${font.class}`}>{font.label}</span>
-                {theme.fontFamily === font.id && <Check className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />}
-              </div>
-              <p className={`text-[11px] text-slate-500 dark:text-slate-400 ${font.class}`}>
-                Universitas Pelita Bangsa 2026
-              </p>
+              <div className="font-bold text-xs">{font.label}</div>
+              <div className="text-[11px] opacity-70 mt-0.5">Universitas Pelita Bangsa</div>
             </button>
           ))}
         </div>

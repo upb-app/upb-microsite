@@ -54,9 +54,32 @@ function MainAppContent() {
     return DEFAULT_MICROSITES_LIST[0].id;
   });
 
-  // Ensure activeSiteId is valid
+  // Ensure activeSiteId is valid and schema is fully hydrated
   const currentMicrosite = microsites.find(s => s.id === activeSiteId) || microsites[0] || DEFAULT_MICROSITES_LIST[0];
-  const data = currentMicrosite.data || DEFAULT_MICROSITE_DATA;
+  const rawData = currentMicrosite?.data || DEFAULT_MICROSITE_DATA;
+  const data = {
+    ...DEFAULT_MICROSITE_DATA,
+    ...rawData,
+    profile: {
+      ...DEFAULT_MICROSITE_DATA.profile,
+      ...(rawData.profile || {})
+    },
+    theme: {
+      ...DEFAULT_MICROSITE_DATA.theme,
+      ...(rawData.theme || {})
+    },
+    buttonStyle: {
+      ...DEFAULT_MICROSITE_DATA.buttonStyle,
+      ...(rawData.buttonStyle || {})
+    },
+    socials: {
+      ...DEFAULT_MICROSITE_DATA.socials,
+      ...(rawData.socials || {})
+    },
+    links: Array.isArray(rawData.links) && rawData.links.length > 0 
+      ? rawData.links 
+      : DEFAULT_MICROSITE_DATA.links
+  };
 
   // Persist microsites and active ID
   useEffect(() => {
