@@ -160,6 +160,7 @@ export default function MicrositeRenderer({
                 key={link.id} 
                 link={link} 
                 buttonStyle={buttonStyle}
+                globalButtonStyle={buttonStyle}
                 onLinkClick={onLinkClick} 
               />
             ))}
