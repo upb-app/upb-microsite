@@ -268,6 +268,27 @@ export default function HomePage() {
               {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
 
+            {/* Portal Pengelola Link */}
+            <a
+              href="/dasbor"
+              onClick={(e) => {
+                e.preventDefault();
+                if (window.history.pushState) {
+                  window.history.pushState(null, '', '/dasbor');
+                  window.dispatchEvent(new PopStateEvent('popstate'));
+                } else {
+                  window.location.href = '/dasbor';
+                }
+              }}
+              className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition ${
+                isDark 
+                  ? 'bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border-blue-500/30' 
+                  : 'bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200'
+              }`}
+            >
+              <span>Dasbor Pengelola</span>
+            </a>
+
             {/* Direct SIBARA Registration CTA */}
             <a
               href="https://sibara.pelitabangsa.ac.id/"

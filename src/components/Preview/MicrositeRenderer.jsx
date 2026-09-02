@@ -2,6 +2,7 @@ import React from 'react';
 import { BadgeCheck, MapPin, Mail, Share2, Sparkles, Building2 } from 'lucide-react';
 import AnimatedButton from './AnimatedButton';
 import SocialIconsBar from './SocialIconsBar';
+import { normalizeImageUrl, DEFAULT_LOGO, DEFAULT_BANNER } from '../../utils/imageHelper';
 
 export default function MicrositeRenderer({ 
   data, 
@@ -9,7 +10,11 @@ export default function MicrositeRenderer({
   onShareClick,
   isFullScreen = false 
 }) {
-  const { profile, theme, buttonStyle, links, socials } = data;
+  const { profile = {}, theme = {}, buttonStyle = {}, links = [], socials = {} } = data || {};
+
+  const avatarUrl = normalizeImageUrl(profile.avatarUrl, DEFAULT_LOGO);
+  const bannerUrl = normalizeImageUrl(profile.headerBannerUrl || profile.bannerUrl, DEFAULT_BANNER);
+  const bgImageUrl = normalizeImageUrl(theme.bgImageUrl || theme.bgImage, DEFAULT_BANNER);
 
   // Background style computation
   let bgStyles = {};
@@ -22,7 +27,7 @@ export default function MicrositeRenderer({
   } else if (theme.bgType === 'mesh') {
     bgClasses = `bg-gradient-to-tr ${theme.bgGradient || 'from-[#050b14] via-[#09182a] to-[#041d38]'}`;
   } else if (theme.bgType === 'image') {
-    bgStyles.backgroundImage = `url(${theme.bgImageUrl || 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=1600&auto=format&fit=crop&q=80'})`;
+    bgStyles.backgroundImage = `url(${bgImageUrl})`;
     bgStyles.backgroundSize = 'cover';
     bgStyles.backgroundPosition = 'center';
   }
@@ -62,17 +67,14 @@ export default function MicrositeRenderer({
         {/* Header Banner Image */}
         {profile.showBanner && (
           <div className="relative w-full h-36 sm:h-40 overflow-hidden bg-slate-800">
-            {profile.headerBannerUrl ? (
-              <img 
-                src={profile.headerBannerUrl} 
-                alt="Header Banner Kampus" 
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full bg-gradient-to-r from-upb-900 via-blue-900 to-amber-900 flex items-center justify-center opacity-70">
-                <Building2 className="w-12 h-12 text-white/20" />
-              </div>
-            )}
+            <img 
+              src={bannerUrl} 
+              alt="Header Banner Kampus" 
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                e.target.src = DEFAULT_BANNER;
+              }}
+            />
             <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-slate-950/80" />
             
             {/* Share action button in banner */}
@@ -93,122 +95,92 @@ export default function MicrositeRenderer({
           
           {/* Avatar / Logo */}
           <div className="relative inline-block mx-auto mb-3">
-            <div className="relative w-24 h-24 sm:w-26 sm:h-26 rounded-2xl overflow-hidden p-1 bg-gradient-to-tr from-amber-500 via-upb-600 to-blue-400 shadow-xl shadow-black/40">
+            <div className="relative w-24 h-24 sm:w-26 sm:h-26 rounded-2xl overflow-hidden p-1 bg-gradient-to-tr from-amber-500 via-upb-600 to-blue-400 shadow-xl shadow-black/40 flex items-center justify-center">
               <img 
-                src={profile.avatarUrl || "https://images.unsplash.com/photo-1592280771190-3e2e4d571952?w=300&auto=format&fit=crop&q=80"} 
-                alt={profile.universityName} 
-                className="w-full h-full object-cover rounded-xl bg-slate-900"
+                src={avatarUrl} 
+                alt={profile.universityName || profile.title || 'UPB'} 
+                className="w-full h-full object-contain rounded-xl bg-white p-1"
+                onError={(e) => {
+                  e.target.src = DEFAULT_LOGO;
+                }}
               />
             </div>
-
-            {/* Verified Badge */}
-            {profile.isVerified && (
-              <div 
-                className="absolute -bottom-1 -right-1 bg-amber-500 text-slate-950 p-1 rounded-full shadow-md border-2 border-slate-900"
-                title="Akun Resmi Terverifikasi"
-              >
-                <BadgeCheck className="w-4 h-4 fill-slate-950 text-amber-400" />
+            {(profile.isVerified || profile.verified) && (
+              <div className="absolute -bottom-1.5 -right-1.5 bg-blue-600 text-white rounded-full p-1 shadow-lg border-2 border-slate-900" title="Akun Resmi Terverifikasi">
+                <BadgeCheck className="w-4 h-4 text-white" />
               </div>
             )}
           </div>
 
-          {/* Badge Label (e.g. Kampus Terakreditasi) */}
-          {profile.badgeText && (
-            <div className="mb-2">
-              <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-semibold tracking-wide bg-amber-500/20 text-amber-300 border border-amber-500/30 backdrop-blur-sm">
-                <Sparkles className="w-3 h-3 text-amber-400" />
-                {profile.badgeText}
-              </span>
-            </div>
-          )}
-
-          {/* University Title & Department */}
-          <h1 className="text-lg sm:text-xl font-bold tracking-tight text-white uppercase drop-shadow-sm">
-            {profile.universityName || "UNIVERSITAS PELITA BANGSA"}
+          {/* Titles & Tagline */}
+          <h1 className="text-lg sm:text-xl font-black text-white tracking-tight flex items-center justify-center gap-1.5 drop-shadow-sm">
+            <span>{profile.universityName || profile.title || 'UNIVERSITAS PELITA BANGSA'}</span>
           </h1>
-          
-          {profile.departmentName && (
-            <h2 className="text-xs sm:text-sm font-semibold text-amber-400 mt-0.5 tracking-wide">
-              {profile.departmentName}
-            </h2>
-          )}
 
-          {/* Tagline & Slogan */}
-          {profile.tagline && (
-            <p className="text-[12px] italic text-slate-300 font-medium mt-1">
-              "{profile.tagline}"
-            </p>
-          )}
+          <p className="text-xs sm:text-sm font-semibold text-amber-400 mt-0.5 tracking-wide">
+            {profile.departmentName || profile.tagline || 'Portal Informasi Resmi & Admisi'}
+          </p>
 
-          {/* Bio Description */}
           {profile.bio && (
-            <p className="text-xs text-slate-300/90 mt-2 max-w-sm mx-auto leading-relaxed">
+            <p className="text-xs text-slate-300 mt-2 line-clamp-3 leading-relaxed px-2 font-normal">
               {profile.bio}
             </p>
           )}
 
-          {/* Location & Email Info Pills */}
+          {/* Location & Contact Meta Badge */}
           <div className="flex flex-wrap items-center justify-center gap-2 mt-3 text-[11px] text-slate-400">
             {profile.location && (
-              <span className="flex items-center gap-1 bg-slate-900/40 px-2.5 py-1 rounded-lg border border-white/5">
-                <MapPin className="w-3 h-3 text-amber-400" />
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-900/80 border border-slate-700/60 backdrop-blur-xs">
+                <MapPin className="w-3 h-3 text-red-400" />
                 {profile.location}
               </span>
             )}
             {profile.email && (
-              <a 
-                href={`mailto:${profile.email}`} 
-                className="flex items-center gap-1 bg-slate-900/40 px-2.5 py-1 rounded-lg border border-white/5 hover:text-amber-300 transition"
-              >
-                <Mail className="w-3 h-3 text-blue-400" />
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-900/80 border border-slate-700/60 backdrop-blur-xs">
+                <Mail className="w-3 h-3 text-amber-400" />
                 {profile.email}
-              </a>
+              </span>
             )}
           </div>
 
-          {/* Top Socials if configured */}
-          {(socials.position === 'top' || socials.position === 'both') && (
-            <div className="mt-2">
+          {/* Social Icons Bar (Position: Top) */}
+          {socials.position === 'top' && (
+            <div className="mt-4">
               <SocialIconsBar socials={socials} />
             </div>
           )}
         </div>
 
-        {/* Links List Section */}
-        <div className="px-4 mt-5 space-y-3 flex-1">
-          {links && links.length > 0 ? (
-            links.map((link) => (
-              <AnimatedButton
-                key={link.id}
-                link={link}
-                globalButtonStyle={buttonStyle}
-                accentColor={theme.accentColor}
-                onLinkClick={onLinkClick}
+        {/* Links Button Stack */}
+        <div className="w-full px-4 sm:px-5 mt-5 space-y-3 flex-1">
+          {links
+            .filter(link => link.isActive !== false)
+            .map((link) => (
+              <AnimatedButton 
+                key={link.id} 
+                link={link} 
+                buttonStyle={buttonStyle}
+                onLinkClick={onLinkClick} 
               />
-            ))
-          ) : (
-            <div className="text-center py-8 text-slate-400 text-xs border border-dashed border-slate-700/50 rounded-xl p-4">
-              Belum ada tautan ditambahkan. Tambahkan tautan di menu Editor.
-            </div>
-          )}
+            ))}
         </div>
 
-        {/* Bottom Socials */}
-        {(socials.position === 'bottom' || socials.position === 'both' || !socials.position) && (
+        {/* Social Icons Bar (Position: Bottom) */}
+        {socials.position !== 'top' && (
           <div className="mt-6 px-4">
             <SocialIconsBar socials={socials} />
           </div>
         )}
 
-        {/* Footer */}
-        <div className="mt-6 pt-4 text-center px-4 border-t border-white/10">
-          <p className="text-[11px] font-medium text-slate-400">
-            © {new Date().getFullYear()} {profile.universityName || "Universitas Pelita Bangsa"}
+        {/* Official Footer Branding */}
+        <footer className="mt-8 pt-4 border-t border-slate-800/80 text-center px-4 text-slate-500 text-[11px]">
+          <p className="flex items-center justify-center gap-1.5 font-medium">
+            <span>© {new Date().getFullYear()} Universitas Pelita Bangsa</span>
           </p>
-          <p className="text-[10px] text-slate-500 mt-0.5">
-            Dikelola dengan <span className="text-amber-400 font-semibold">UPB Microsite Hub</span>
+          <p className="text-[10px] text-slate-400 mt-0.5">
+            Membangun Generasi Unggul Berkarakter & Berdaya Saing Global
           </p>
-        </div>
+        </footer>
 
       </div>
     </div>

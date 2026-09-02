@@ -22,6 +22,7 @@ import {
 } from '../components/Common/BrandIcons';
 import { sanitizeUrl } from '../utils/security';
 import { recordPageView, recordLinkClick } from '../services/analyticsService';
+import { normalizeImageUrl, DEFAULT_LOGO, DEFAULT_BANNER } from '../utils/imageHelper';
 import QrCodeModal from '../components/Modals/QrCodeModal';
 import confetti from 'canvas-confetti';
 
@@ -35,6 +36,14 @@ export default function PublicMicrositePage({ site, onGoHome }) {
   const theme = data.theme || {};
   const buttonStyle = data.buttonStyle || {};
   const socials = data.socials || {};
+
+  const avatarUrl = normalizeImageUrl(profile.avatarUrl, DEFAULT_LOGO);
+  const bannerUrl = (profile.showBanner !== false && (profile.headerBannerUrl || profile.bannerUrl))
+    ? normalizeImageUrl(profile.headerBannerUrl || profile.bannerUrl, DEFAULT_BANNER)
+    : null;
+  const bgImageUrl = (theme.bgType === 'image' && (theme.bgImageUrl || theme.bgImage))
+    ? normalizeImageUrl(theme.bgImageUrl || theme.bgImage, DEFAULT_BANNER)
+    : null;
 
   // Record page view on mount
   useEffect(() => {
@@ -59,9 +68,9 @@ export default function PublicMicrositePage({ site, onGoHome }) {
 
   // Get background style
   const getBackgroundStyle = () => {
-    if (theme.bgType === 'image' && theme.bgImage) {
+    if (theme.bgType === 'image' && bgImageUrl) {
       return {
-        backgroundImage: `url('${theme.bgImage}')`,
+        backgroundImage: `url('${bgImageUrl}')`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundAttachment: 'fixed'
@@ -87,8 +96,10 @@ export default function PublicMicrositePage({ site, onGoHome }) {
 
   // Button shape classes
   const getButtonShapeClass = () => {
-    switch (buttonStyle.shape) {
+    switch (buttonStyle.shape || buttonStyle.rounded) {
+      case 'rounded-full':
       case 'pill': return 'rounded-full';
+      case 'rounded-none':
       case 'square': return 'rounded-none';
       case 'rounded-lg': return 'rounded-lg';
       default: return 'rounded-2xl';
@@ -116,10 +127,13 @@ export default function PublicMicrositePage({ site, onGoHome }) {
   // Animation class
   const getAnimationClass = (animation) => {
     switch (animation) {
+      case 'anim-pulse':
       case 'pulse': return 'animate-pulse';
+      case 'anim-bounce':
       case 'bounce': return 'animate-bounce';
+      case 'anim-glow':
       case 'glow': return 'ring-2 ring-amber-400 ring-offset-2 ring-offset-slate-950';
-      case 'shake': return 'hover:animate-shake';
+      case 'anim-hover-scale': return 'hover:scale-[1.02]';
       default: return '';
     }
   };
@@ -134,8 +148,8 @@ export default function PublicMicrositePage({ site, onGoHome }) {
       {/* Background Overlay */}
       {theme.bgType === 'image' && (
         <div 
-          className="absolute inset-0 bg-navy-950 pointer-events-none"
-          style={{ opacity: theme.overlayOpacity ? theme.overlayOpacity / 100 : 0.75 }}
+          className="absolute inset-0 bg-slate-950 pointer-events-none"
+          style={{ opacity: theme.bgOverlayOpacity ? theme.bgOverlayOpacity / 100 : (theme.overlayOpacity ? theme.overlayOpacity / 100 : 0.75) }}
         />
       )}
 
@@ -173,26 +187,32 @@ export default function PublicMicrositePage({ site, onGoHome }) {
       <main className="relative z-10 max-w-md w-full mx-auto px-4 py-6 sm:py-8 flex-1 flex flex-col items-center">
         
         {/* Banner Cover if configured */}
-        {profile.bannerUrl && (
-          <div className="w-full h-32 sm:h-36 rounded-2xl overflow-hidden mb-[-40px] shadow-lg border border-white/15">
+        {bannerUrl && (
+          <div className="w-full h-32 sm:h-36 rounded-2xl overflow-hidden mb-[-40px] shadow-lg border border-white/15 bg-slate-800">
             <img 
-              src={profile.bannerUrl} 
-              alt="Banner" 
+              src={bannerUrl} 
+              alt="Banner Header" 
               className="w-full h-full object-cover"
+              onError={(e) => {
+                e.target.src = DEFAULT_BANNER;
+              }}
             />
           </div>
         )}
 
         {/* Profile Avatar / Logo */}
         <div className="relative mb-3 flex-shrink-0">
-          <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-white p-1.5 shadow-2xl border-2 border-white/30 overflow-hidden ring-4 ring-black/20">
+          <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-white p-1.5 shadow-2xl border-2 border-white/30 overflow-hidden ring-4 ring-black/20 flex items-center justify-center">
             <img 
-              src={profile.avatarUrl || '/img/logo-universitas-pelita-bangsa.png'} 
-              alt={profile.title} 
+              src={avatarUrl} 
+              alt={profile.title || profile.universityName || 'UPB'} 
               className="w-full h-full object-contain rounded-2xl"
+              onError={(e) => {
+                e.target.src = DEFAULT_LOGO;
+              }}
             />
           </div>
-          {profile.verified && (
+          {(profile.verified || profile.isVerified) && (
             <div className="absolute -bottom-1 -right-1 p-1.5 bg-blue-600 text-white rounded-full shadow-md border-2 border-slate-900" title="Terverifikasi Resmi">
               <CheckCircle2 className="w-4 h-4" />
             </div>
@@ -202,12 +222,12 @@ export default function PublicMicrositePage({ site, onGoHome }) {
         {/* Profile Information */}
         <div className="text-center space-y-2 mb-6 w-full">
           <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white drop-shadow-md">
-            {profile.title || 'Universitas Pelita Bangsa'}
+            {profile.title || profile.universityName || 'Universitas Pelita Bangsa'}
           </h1>
 
-          {profile.tagline && (
+          {(profile.tagline || profile.departmentName) && (
             <p className="text-xs sm:text-sm font-semibold text-amber-300 drop-shadow-sm">
-              {profile.tagline}
+              {profile.tagline || profile.departmentName}
             </p>
           )}
 

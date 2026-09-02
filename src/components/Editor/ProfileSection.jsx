@@ -11,16 +11,18 @@ import {
   EyeOff
 } from 'lucide-react';
 
+import { normalizeImageUrl, DEFAULT_LOGO, DEFAULT_BANNER } from '../../utils/imageHelper';
+
 const BANNER_PRESETS = [
-  { label: 'Gedung UPB', url: './img/upb-bg2.JPG' },
-  { label: 'Kampus Pelita Bangsa', url: './img/upb-bg.JPG' },
+  { label: 'Gedung UPB', url: '/img/upb-bg2.JPG' },
+  { label: 'Kampus Pelita Bangsa', url: '/img/upb-bg.JPG' },
   { label: 'Riset & Teknologi', url: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=1200&auto=format&fit=crop&q=80' },
   { label: 'Perpustakaan Digital', url: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=1200&auto=format&fit=crop&q=80' },
   { label: 'Mahasiswa & Festival', url: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=1200&auto=format&fit=crop&q=80' },
 ];
 
 const AVATAR_PRESETS = [
-  { label: 'Logo Resmi UPB', url: './img/logo-universitas-pelita-bangsa.png' },
+  { label: 'Logo Resmi UPB', url: '/img/logo-universitas-pelita-bangsa.png' },
   { label: 'Mahasiswa', url: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=300&auto=format&fit=crop&q=80' },
   { label: 'Dosen / Peneliti', url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80' },
   { label: 'Fakultas Teknik', url: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?w=300&auto=format&fit=crop&q=80' },

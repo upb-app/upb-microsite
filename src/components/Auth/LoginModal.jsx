@@ -35,8 +35,11 @@ export default function LoginModal({ isOpen, onClose, onSuccessLogin }) {
         } else {
           window.location.hash = '/dasbor';
         }
-        if (onSuccessLogin) onSuccessLogin(result.user);
-        onClose();
+        if (onSuccessLogin) {
+          onSuccessLogin(result.user);
+        } else if (onClose) {
+          onClose();
+        }
       }
     } catch (err) {
       setErrorMessage(err.message || 'Gagal login. Periksa email dan password Anda.');
