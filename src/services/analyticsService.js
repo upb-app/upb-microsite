@@ -8,9 +8,9 @@ import {
   setDoc, 
   getDoc, 
   increment, 
-  onSnapshot,
-  collection,
-  addDoc,
+  onSnapshot, 
+  collection, 
+  addDoc, 
   serverTimestamp 
 } from 'firebase/firestore';
 
@@ -19,6 +19,7 @@ const LOCAL_ACTIVITY_LOGS_KEY = 'upb_realtime_activity_logs_v2';
 
 // Deteksi perangkat pengunjung asli
 export function detectDeviceType() {
+  if (typeof navigator === 'undefined') return 'Desktop';
   const ua = navigator.userAgent.toLowerCase();
   if (/(tablet|ipad|playbook|silk)|(android(?!.*mobi))/i.test(ua)) {
     return 'Tablet';
@@ -54,6 +55,11 @@ export async function recordPageView(siteId, slug) {
 
     data[siteId] = siteStats;
     localStorage.setItem(LOCAL_ANALYTICS_KEY, JSON.stringify(data));
+
+    // Dispatch global custom event for instant same-tab reactive UI update
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('upb-analytics-updated', { detail: { siteId } }));
+    }
   } catch (e) {
     console.error('Error saving local page view', e);
   }
@@ -113,6 +119,11 @@ export async function recordLinkClick(siteId, linkId, linkTitle, linkUrl) {
     };
     const updatedLogs = [newLog, ...logs].slice(0, 50); // Simpan 50 aktivitas klik terakhir
     localStorage.setItem(LOCAL_ACTIVITY_LOGS_KEY, JSON.stringify(updatedLogs));
+
+    // Dispatch global custom event for instant same-tab reactive UI update
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('upb-analytics-updated', { detail: { siteId } }));
+    }
   } catch (e) {
     console.error('Error saving local click', e);
   }
@@ -240,5 +251,9 @@ export function resetLocalAnalytics(siteId) {
     const logs = rawLogs ? JSON.parse(rawLogs) : [];
     const filtered = logs.filter(l => l.siteId !== siteId);
     localStorage.setItem(LOCAL_ACTIVITY_LOGS_KEY, JSON.stringify(filtered));
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('upb-analytics-updated', { detail: { siteId } }));
+    }
   } catch (e) {}
 }
