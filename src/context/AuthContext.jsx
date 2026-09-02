@@ -123,7 +123,28 @@ export function AuthProvider({ children }) {
         logAuditEvent('LOGIN_SUCCESS_FIREBASE', `Firebase Auth UID: ${userCredential.user.uid}`, cleanEmail);
         return { success: true, user: userProfile };
       } catch (fbError) {
-        console.warn('Firebase Auth notice, attempting fallback secure store:', fbError.message);
+        console.error('Firebase Auth Error Code:', fbError.code, fbError.message);
+        
+        let errorMessage = 'Gagal login via Firebase: ' + fbError.message;
+        if (fbError.code === 'auth/unauthorized-domain') {
+          errorMessage = 'Domain ini belum diizinkan di Firebase! Masuk ke Firebase Console -> Authentication -> Settings -> Authorized Domains, lalu tambahkan domain ini.';
+        } else if (fbError.code === 'auth/user-not-found') {
+          errorMessage = 'Email belum terdaftar di Firebase Authentication.';
+        } else if (fbError.code === 'auth/wrong-password' || fbError.code === 'auth/invalid-credential') {
+          errorMessage = 'Password salah. Pastikan password sesuai dengan yang dibuat di Firebase Console.';
+        } else if (fbError.code === 'auth/invalid-email') {
+          errorMessage = 'Format email tidak valid.';
+        } else if (fbError.code === 'auth/too-many-requests') {
+          errorMessage = 'Terlalu banyak percobaan gagal di Firebase. Akun diblokir sementara.';
+        } else if (fbError.code === 'auth/invalid-api-key' || fbError.code === 'auth/api-key-not-valid') {
+          errorMessage = 'API Key Firebase tidak valid. Periksa kembali VITE_FIREBASE_API_KEY di Vercel.';
+        } else if (fbError.code === 'auth/user-disabled') {
+          errorMessage = 'Akun ini telah dinonaktifkan di Firebase Console.';
+        }
+
+        recordFailedLogin(cleanEmail);
+        logAuditEvent('LOGIN_FAILED_FIREBASE', `${fbError.code}: ${fbError.message}`, cleanEmail);
+        throw new Error(errorMessage);
       }
     }
 
