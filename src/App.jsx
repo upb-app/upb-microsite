@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import HomePage from './pages/HomePage';
+import PublicMicrositePage from './pages/PublicMicrositePage';
 import EditorTabs from './components/Editor/EditorTabs';
 import ProfileSection from './components/Editor/ProfileSection';
 import LinksSection from './components/Editor/LinksSection';
@@ -12,6 +13,7 @@ import DeviceFrame from './components/Preview/DeviceFrame';
 import QrCodeModal from './components/Modals/QrCodeModal';
 import ExportModal from './components/Modals/ExportModal';
 import ShareModal from './components/Modals/ShareModal';
+import PublishModal from './components/Modals/PublishModal';
 import PublicViewModal from './components/Modals/PublicViewModal';
 import LoginModal from './components/Auth/LoginModal';
 import UserManagementModal from './components/Admin/UserManagementModal';
@@ -19,7 +21,7 @@ import MicrositeManagerModal from './components/Admin/MicrositeManagerModal';
 import { DEFAULT_MICROSITE_DATA, DEFAULT_MICROSITES_LIST } from './data/defaultData';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
-import { Layers, ExternalLink } from 'lucide-react';
+import { Layers, ExternalLink, Send, Radio } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 const MICROSITES_STORAGE_KEY = 'upb_multi_microsites_list_v2';
@@ -64,7 +66,7 @@ function MainAppContent() {
     } catch (e) {}
   }, [microsites, activeSiteId]);
 
-  // URL Path router detection
+  // URL Path router helpers
   const isDashboardRoute = () => {
     const path = window.location.pathname.toLowerCase();
     const hash = window.location.hash.toLowerCase();
@@ -78,13 +80,35 @@ function MainAppContent() {
     );
   };
 
-  // Route State: 'home' | 'dashboard'
-  const [route, setRoute] = useState(() => (isDashboardRoute() ? 'dashboard' : 'home'));
+  const getPublicSlug = () => {
+    const hash = window.location.hash;
+    const path = window.location.pathname;
+    
+    // Check hash route format '#/s/[slug]'
+    if (hash.startsWith('#/s/')) {
+      return hash.replace('#/s/', '').split('?')[0].split('/')[0].trim().toLowerCase();
+    }
+    // Check path format '/s/[slug]'
+    if (path.startsWith('/s/')) {
+      return path.replace('/s/', '').split('?')[0].split('/')[0].trim().toLowerCase();
+    }
+    return null;
+  };
+
+  // Route State: 'home' | 'dashboard' | 'public-site'
+  const [route, setRoute] = useState(() => {
+    if (getPublicSlug()) return 'public-site';
+    if (isDashboardRoute()) return 'dashboard';
+    return 'home';
+  });
 
   // Listen for browser navigation changes
   useEffect(() => {
     const checkRoute = () => {
-      if (isDashboardRoute()) {
+      const slug = getPublicSlug();
+      if (slug) {
+        setRoute('public-site');
+      } else if (isDashboardRoute()) {
         setRoute('dashboard');
       } else {
         setRoute('home');
@@ -119,6 +143,7 @@ function MainAppContent() {
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
   const [isPublicViewOpen, setIsPublicViewOpen] = useState(false);
   const [isUserManagementOpen, setIsUserManagementOpen] = useState(false);
   const [isMicrositeManagerOpen, setIsMicrositeManagerOpen] = useState(false);
@@ -139,152 +164,125 @@ function MainAppContent() {
     }));
   };
 
-  // Profile update helpers
+  // Section updaters
   const updateProfile = (field, value) => {
-    updateActiveSiteData(prevData => ({
-      ...prevData,
-      profile: {
-        ...prevData.profile,
-        [field]: value
-      }
+    updateActiveSiteData(prev => ({
+      ...prev,
+      profile: { ...prev.profile, [field]: value }
     }));
   };
 
-  // Theme update helpers
+  const setLinks = (updater) => {
+    updateActiveSiteData(prev => ({
+      ...prev,
+      links: typeof updater === 'function' ? updater(prev.links) : updater
+    }));
+  };
+
   const updateTheme = (field, value) => {
-    updateActiveSiteData(prevData => ({
-      ...prevData,
-      theme: {
-        ...prevData.theme,
-        [field]: value
-      }
+    updateActiveSiteData(prev => ({
+      ...prev,
+      theme: { ...prev.theme, [field]: value }
     }));
   };
 
-  // Button style helpers
   const updateButtonStyle = (field, value) => {
-    updateActiveSiteData(prevData => ({
-      ...prevData,
-      buttonStyle: {
-        ...prevData.buttonStyle,
-        [field]: value
-      }
+    updateActiveSiteData(prev => ({
+      ...prev,
+      buttonStyle: { ...prev.buttonStyle, [field]: value }
     }));
   };
 
-  // Links update helpers
-  const setLinks = (newLinks) => {
-    updateActiveSiteData(prevData => ({
-      ...prevData,
-      links: typeof newLinks === 'function' ? newLinks(prevData.links) : newLinks
-    }));
-  };
-
-  // Socials update helpers
   const updateSocials = (field, value) => {
-    updateActiveSiteData(prevData => ({
-      ...prevData,
-      socials: {
-        ...prevData.socials,
-        [field]: value
-      }
+    updateActiveSiteData(prev => ({
+      ...prev,
+      socials: { ...prev.socials, [field]: value }
     }));
   };
 
-  // Apply Preset
   const handleApplyPreset = (presetData) => {
     updateActiveSiteData(presetData);
   };
 
-  // Reset current microsite to default
   const handleResetDefault = () => {
-    if (window.confirm(`Kembalikan data microsite "${currentMicrosite.title}" ke pengaturan awal?`)) {
+    if (window.confirm('Reset microsite ini kembali ke data template awal?')) {
       updateActiveSiteData(DEFAULT_MICROSITE_DATA);
-      confetti({ particleCount: 50 });
     }
   };
 
-  // Handle link click analytics
-  const handleLinkClick = (linkId) => {
-    updateActiveSiteData(prevData => ({
-      ...prevData,
-      links: prevData.links.map(link => 
-        link.id === linkId 
-          ? { ...link, clicks: (link.clicks || 0) + 1 } 
-          : link
-      )
-    }));
+  const handleResetClicks = () => {
+    setLinks(prev => prev.map(l => ({ ...l, clicks: 0 })));
   };
 
-  // Reset clicks
-  const handleResetClicks = () => {
-    updateActiveSiteData(prevData => ({
-      ...prevData,
-      links: prevData.links.map(link => ({ ...link, clicks: 0 }))
+  const handleLinkClick = (linkId) => {
+    setLinks(prev => prev.map(l => {
+      if (l.id === linkId) {
+        return { ...l, clicks: (l.clicks || 0) + 1 };
+      }
+      return l;
     }));
   };
 
   // Multi-microsite actions
   const handleSelectSite = (siteId) => {
     setActiveSiteId(siteId);
-    const targetSite = microsites.find(s => s.id === siteId);
-    if (targetSite) {
-      setPreviewData(targetSite.data);
+    const selected = microsites.find(s => s.id === siteId);
+    if (selected) {
+      setPreviewData(selected.data);
     }
   };
 
   const handleCreateSite = ({ title, slug, category, tagline }) => {
-    const newId = `site-${Date.now()}`;
     const newSite = {
-      id: newId,
+      id: `site-${Date.now()}`,
       title,
       slug,
       category: category || 'Fakultas',
-      status: 'Active',
-      views: 0,
       createdAt: new Date().toISOString().split('T')[0],
       updatedAt: new Date().toISOString().split('T')[0],
+      views: 0,
+      isPublished: true,
       data: {
         ...DEFAULT_MICROSITE_DATA,
         profile: {
           ...DEFAULT_MICROSITE_DATA.profile,
-          departmentName: title,
-          tagline: tagline || 'Membangun Generasi Unggul Berkarakter & Berdaya Saing Global',
-          bio: `Selamat datang di kanal informasi resmi ${title} Universitas Pelita Bangsa.`
+          title,
+          tagline: tagline || 'Portal Resmi Universitas Pelita Bangsa',
+          bio: `Pusat informasi dan layanan digital terpadu untuk ${title} Universitas Pelita Bangsa.`
         }
       }
     };
 
     setMicrosites(prev => [newSite, ...prev]);
-    setActiveSiteId(newId);
+    setActiveSiteId(newSite.id);
   };
 
   const handleDuplicateSite = (siteId) => {
-    const siteToClone = microsites.find(s => s.id === siteId);
-    if (!siteToClone) return;
+    const target = microsites.find(s => s.id === siteId);
+    if (!target) return;
 
-    const newId = `site-${Date.now()}`;
-    const clonedSite = {
-      ...siteToClone,
-      id: newId,
-      title: `${siteToClone.title} (Salinan)`,
-      slug: `${siteToClone.slug}-copy`,
-      views: 0,
+    const copySite = {
+      ...target,
+      id: `site-${Date.now()}`,
+      title: `${target.title} (Salinan)`,
+      slug: `${target.slug}-copy-${Math.floor(Math.random() * 1000)}`,
       createdAt: new Date().toISOString().split('T')[0],
       updatedAt: new Date().toISOString().split('T')[0],
-      data: JSON.parse(JSON.stringify(siteToClone.data))
+      views: 0,
+      data: JSON.parse(JSON.stringify(target.data))
     };
 
-    setMicrosites(prev => [clonedSite, ...prev]);
-    setActiveSiteId(newId);
-    confetti({ particleCount: 40 });
+    setMicrosites(prev => [copySite, ...prev]);
+    setActiveSiteId(copySite.id);
+    confetti({ particleCount: 50 });
   };
 
   const handleDeleteSite = (siteId) => {
     if (microsites.length <= 1) {
-      alert('Minimal harus ada 1 microsite yang tersisa.');
+      alert('Tidak dapat menghapus satu-satunya microsite yang tersisa.');
       return;
     }
+
     const remaining = microsites.filter(s => s.id !== siteId);
     setMicrosites(remaining);
     if (activeSiteId === siteId) {
@@ -293,9 +291,25 @@ function MainAppContent() {
   };
 
   // ----------------------------------------------------------------------
-  // SCENARIO 1: PUBLIC HOME PAGE (Route === 'home')
+  // SCENARIO 0: STANDALONE PUBLIC MICROSITE VIEW (`/#/s/[slug]`)
+  // Accessible to anyone without login or dashboard chrome
   // ----------------------------------------------------------------------
-  if (route !== 'dashboard') {
+  if (route === 'public-site') {
+    const publicSlug = getPublicSlug();
+    const publicSite = microsites.find(s => s.slug === publicSlug) || currentMicrosite;
+
+    return (
+      <PublicMicrositePage 
+        site={publicSite} 
+        onGoHome={() => navigateTo('home')} 
+      />
+    );
+  }
+
+  // ----------------------------------------------------------------------
+  // SCENARIO 1: ACCESSED VIA '/' (HOME PMB PORTAL)
+  // ----------------------------------------------------------------------
+  if (route === 'home') {
     return (
       <div className="min-h-screen font-sans">
         <HomePage />
@@ -372,6 +386,7 @@ function MainAppContent() {
         }}
         onOpenExport={() => setIsExportModalOpen(true)}
         onOpenShare={() => setIsShareModalOpen(true)}
+        onOpenPublish={() => setIsPublishModalOpen(true)}
         onOpenPublicView={() => {
           setPreviewData(data);
           setIsPublicViewOpen(true);
@@ -381,7 +396,7 @@ function MainAppContent() {
         onGoHome={() => navigateTo('home')}
       />
 
-      {/* Secondary Bar: Active Microsite Status & Quick Switcher */}
+      {/* Secondary Bar: Active Microsite Status & Quick Actions */}
       <div className={`border-b px-4 sm:px-6 py-2 transition-colors ${
         isDark ? 'bg-[#071326] border-white/10' : 'bg-white border-slate-200 shadow-xs'
       }`}>
@@ -405,6 +420,16 @@ function MainAppContent() {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Publish & Share Quick Button */}
+            <button
+              onClick={() => setIsPublishModalOpen(true)}
+              className="px-3 py-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-lg flex items-center gap-1.5 transition text-xs shadow-sm"
+            >
+              <Send className="w-3.5 h-3.5" />
+              <span>Publikasikan & Link</span>
+            </button>
+
+            {/* Switch / Add Microsite Button */}
             <button
               onClick={() => setIsMicrositeManagerOpen(true)}
               className={`px-3 py-1 font-bold rounded-lg border flex items-center gap-1.5 transition text-xs ${
@@ -416,6 +441,8 @@ function MainAppContent() {
               <Layers className="w-3.5 h-3.5 text-blue-600" />
               <span>Ganti / Tambah Situs</span>
             </button>
+
+            {/* Preview Button */}
             <button
               onClick={() => {
                 setPreviewData(data);
@@ -470,7 +497,7 @@ function MainAppContent() {
             )}
 
             {activeTab === 'analytics' && (
-              <AnalyticsSection links={data.links} onResetClicks={handleResetClicks} />
+              <AnalyticsSection site={currentMicrosite} links={data.links} onResetClicks={handleResetClicks} />
             )}
           </div>
 
@@ -509,6 +536,17 @@ function MainAppContent() {
         onCreateSite={handleCreateSite}
         onDuplicateSite={handleDuplicateSite}
         onDeleteSite={handleDeleteSite}
+      />
+
+      {/* Publish & Share Modal */}
+      <PublishModal
+        isOpen={isPublishModalOpen}
+        onClose={() => setIsPublishModalOpen(false)}
+        microsite={currentMicrosite}
+        onOpenQr={() => {
+          setPreviewData(data);
+          setIsQrModalOpen(true);
+        }}
       />
 
       {/* Modals */}

@@ -16,11 +16,11 @@ import {
   Layers,
   ChevronDown,
   Sun,
-  Moon
+  Moon,
+  Send
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import confetti from 'canvas-confetti';
 
 export default function Navbar({ 
   data, 
@@ -31,6 +31,7 @@ export default function Navbar({
   onOpenQr, 
   onOpenExport, 
   onOpenShare, 
+  onOpenPublish,
   onOpenPublicView, 
   onOpenPresets, 
   onOpenUserManagement, 
@@ -158,6 +159,16 @@ export default function Navbar({
             </button>
           )}
 
+          {/* Publish / Share Button */}
+          <button
+            onClick={onOpenPublish}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs rounded-xl shadow-md transition transform active:scale-95"
+            title="Publikasikan & Bagikan URL Publik"
+          >
+            <Send className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Publikasikan</span>
+          </button>
+
           {/* QR Code */}
           <button
             onClick={onOpenQr}
@@ -184,33 +195,14 @@ export default function Navbar({
             <Download className="w-4 h-4 text-blue-500" />
           </button>
 
-          {/* Share */}
-          <button
-            onClick={onOpenShare}
-            className={`p-2 text-xs font-semibold rounded-xl border transition shadow-sm ${
-              isDark 
-                ? 'bg-[#0c2242] hover:bg-[#0f2c59] text-white border-white/10' 
-                : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300'
-            }`}
-            title="Bagikan Tautan"
-          >
-            <Share2 className="w-4 h-4 text-emerald-500" />
-          </button>
-
           {/* Live Fullscreen View */}
-          <a
-            href="https://sibara.pelitabangsa.ac.id/"
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => {
-              e.preventDefault();
-              onOpenPublicView();
-            }}
+          <button
+            onClick={onOpenPublicView}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-black text-xs rounded-xl shadow-md transition transform active:scale-95"
           >
             <ExternalLink className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Lihat Publik</span>
-          </a>
+            <span className="hidden sm:inline">Preview</span>
+          </button>
 
           {/* Logout (Red for Destructive Action) */}
           <button
