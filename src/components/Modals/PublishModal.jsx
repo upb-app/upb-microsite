@@ -25,12 +25,12 @@ export default function PublishModal({
 
   if (!isOpen || !microsite) return null;
 
-  // Generate official public URL
-  const domain = window.location.origin.includes('localhost') 
-    ? (window.location.origin + window.location.pathname) 
+  // Clean Public URL without '#' (Standard HTML5 History on Vercel)
+  const origin = window.location.origin.includes('localhost') 
+    ? window.location.origin 
     : 'https://pmbupb.site';
   
-  const publicUrl = `${domain}#/s/${microsite.slug}`;
+  const publicUrl = `${origin}/s/${microsite.slug}`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(publicUrl);
@@ -96,7 +96,7 @@ export default function PublishModal({
         {/* Public URL Box */}
         <div className="space-y-1.5 text-left">
           <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-            Tautan Publik Resmi (Public URL):
+            Tautan Publik Resmi (Clean URL):
           </label>
           <div className={`flex items-center p-2 rounded-2xl border ${
             isDark ? 'bg-[#040914] border-white/15' : 'bg-slate-50 border-slate-300'

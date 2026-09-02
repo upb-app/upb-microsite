@@ -30,7 +30,11 @@ export default function LoginModal({ isOpen, onClose, onSuccessLogin }) {
       const result = await login(email, password);
       if (result.success) {
         confetti({ particleCount: 70, spread: 60 });
-        window.location.hash = '/dasbor';
+        if (window.history.pushState) {
+          window.history.pushState(null, '', '/dasbor');
+        } else {
+          window.location.hash = '/dasbor';
+        }
         if (onSuccessLogin) onSuccessLogin(result.user);
         onClose();
       }

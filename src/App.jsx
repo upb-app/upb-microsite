@@ -123,14 +123,26 @@ function MainAppContent() {
     };
   }, []);
 
-  const navigateTo = (newRoute) => {
+  const navigateTo = (newRoute, slug) => {
     if (newRoute === 'dashboard') {
-      window.location.hash = '/dasbor';
-      setRoute('dashboard');
-    } else {
-      window.location.hash = '';
       if (window.history.pushState) {
-        window.history.pushState(null, '', window.location.pathname.replace(/\/dasbor/i, '') || '/');
+        window.history.pushState(null, '', '/dasbor');
+      } else {
+        window.location.hash = '/dasbor';
+      }
+      setRoute('dashboard');
+    } else if (newRoute === 'public-site' && slug) {
+      if (window.history.pushState) {
+        window.history.pushState(null, '', `/s/${slug}`);
+      } else {
+        window.location.hash = `/s/${slug}`;
+      }
+      setRoute('public-site');
+    } else {
+      if (window.history.pushState) {
+        window.history.pushState(null, '', '/');
+      } else {
+        window.location.hash = '';
       }
       setRoute('home');
     }
