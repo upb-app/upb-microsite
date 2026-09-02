@@ -449,7 +449,7 @@ function MainAppContent() {
               {currentMicrosite.title}
             </span>
             <span className="text-slate-400 font-mono text-[11px] hidden md:inline">
-              (upb.ac.id/{currentMicrosite.slug})
+              (pmbupb.site/s/{currentMicrosite.slug})
             </span>
             <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
               isDark ? 'bg-white/10 text-amber-400 border-white/10' : 'bg-blue-50 text-blue-800 border-blue-200'
