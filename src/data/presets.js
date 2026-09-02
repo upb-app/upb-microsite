@@ -53,7 +53,7 @@ export const PRESET_TEMPLATES = [
           badge: "BEASISWA AKTIF",
           badgeColor: "bg-amber-500 text-slate-950",
           highlight: true,
-          clicks: 4520,
+          clicks: 0,
         },
         {
           id: "pmb-2",
@@ -65,7 +65,7 @@ export const PRESET_TEMPLATES = [
           badge: "UNDUH PDF",
           badgeColor: "bg-blue-500 text-white",
           highlight: false,
-          clicks: 2130,
+          clicks: 0,
         },
         {
           id: "pmb-3",
@@ -77,7 +77,7 @@ export const PRESET_TEMPLATES = [
           badge: "POPULER",
           badgeColor: "bg-emerald-500 text-slate-950",
           highlight: false,
-          clicks: 3100,
+          clicks: 0,
         },
         {
           id: "pmb-4",
@@ -89,7 +89,7 @@ export const PRESET_TEMPLATES = [
           badge: "360° TOUR",
           badgeColor: "bg-purple-600 text-white",
           highlight: false,
-          clicks: 980,
+          clicks: 0,
         },
       ],
       socials: {
@@ -161,7 +161,7 @@ export const PRESET_TEMPLATES = [
           badge: "TA & SKRIPSI",
           badgeColor: "bg-cyan-500 text-slate-950",
           highlight: true,
-          clicks: 1890,
+          clicks: 0,
         },
         {
           id: "fastikom-2",
@@ -173,7 +173,7 @@ export const PRESET_TEMPLATES = [
           badge: "LAB PRAKTIKUM",
           badgeColor: "bg-blue-600 text-white",
           highlight: false,
-          clicks: 2750,
+          clicks: 0,
         },
         {
           id: "fastikom-3",
@@ -185,7 +185,7 @@ export const PRESET_TEMPLATES = [
           badge: "SINTA 3",
           badgeColor: "bg-emerald-500 text-slate-950",
           highlight: false,
-          clicks: 1140,
+          clicks: 0,
         },
       ],
       socials: {
@@ -257,7 +257,7 @@ export const PRESET_TEMPLATES = [
           badge: "TIKET PRESALE",
           badgeColor: "bg-rose-500 text-white",
           highlight: true,
-          clicks: 3410,
+          clicks: 0,
         },
         {
           id: "bem-2",
@@ -269,7 +269,7 @@ export const PRESET_TEMPLATES = [
           badge: "RESPON CEPAT",
           badgeColor: "bg-amber-500 text-slate-950",
           highlight: false,
-          clicks: 1840,
+          clicks: 0,
         },
         {
           id: "bem-3",
@@ -281,7 +281,7 @@ export const PRESET_TEMPLATES = [
           badge: "OPREC DIBUKA",
           badgeColor: "bg-purple-500 text-white",
           highlight: false,
-          clicks: 2190,
+          clicks: 0,
         },
       ],
       socials: {
@@ -353,7 +353,7 @@ export const PRESET_TEMPLATES = [
           badge: "20+ LOKER BARU",
           badgeColor: "bg-emerald-500 text-slate-950",
           highlight: true,
-          clicks: 5280,
+          clicks: 0,
         },
         {
           id: "cdc-2",
@@ -365,7 +365,7 @@ export const PRESET_TEMPLATES = [
           badge: "ALUMNI WAJIB",
           badgeColor: "bg-amber-500 text-slate-950",
           highlight: false,
-          clicks: 2940,
+          clicks: 0,
         },
         {
           id: "cdc-3",
@@ -377,7 +377,7 @@ export const PRESET_TEMPLATES = [
           badge: "FREE MAHASISWA",
           badgeColor: "bg-cyan-500 text-slate-950",
           highlight: false,
-          clicks: 1390,
+          clicks: 0,
         },
       ],
       socials: {
@@ -449,7 +449,7 @@ export const PRESET_TEMPLATES = [
           badge: "SCOPUS / WOS",
           badgeColor: "bg-amber-400 text-slate-950",
           highlight: true,
-          clicks: 1420,
+          clicks: 0,
         },
         {
           id: "dosen-2",
@@ -461,7 +461,7 @@ export const PRESET_TEMPLATES = [
           badge: "MATERI KULIAH",
           badgeColor: "bg-blue-500 text-white",
           highlight: false,
-          clicks: 2190,
+          clicks: 0,
         },
         {
           id: "dosen-3",
@@ -473,7 +473,7 @@ export const PRESET_TEMPLATES = [
           badge: "BIMBINGAN",
           badgeColor: "bg-emerald-500 text-slate-950",
           highlight: false,
-          clicks: 980,
+          clicks: 0,
         },
       ],
       socials: {

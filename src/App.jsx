@@ -23,6 +23,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { Layers, ExternalLink, Send, Radio } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { recordLinkClick } from './services/analyticsService';
 
 const MICROSITES_STORAGE_KEY = 'upb_multi_microsites_list_v2';
 const ACTIVE_SITE_KEY = 'upb_active_microsite_id_v2';
@@ -250,12 +251,10 @@ function MainAppContent() {
   };
 
   const handleLinkClick = (linkId) => {
-    setLinks(prev => prev.map(l => {
-      if (l.id === linkId) {
-        return { ...l, clicks: (l.clicks || 0) + 1 };
-      }
-      return l;
-    }));
+    const targetLink = (data?.links || []).find(l => l.id === linkId);
+    if (currentMicrosite?.id && targetLink) {
+      recordLinkClick(currentMicrosite.id, linkId, targetLink.title, targetLink.url);
+    }
   };
 
   // Multi-microsite actions

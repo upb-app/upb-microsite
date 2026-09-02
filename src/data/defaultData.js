@@ -47,7 +47,7 @@ export const DEFAULT_MICROSITE_DATA = {
       badgeColor: "bg-amber-500 text-slate-950",
       highlight: true,
       customColor: "",
-      clicks: 1420,
+      clicks: 0,
     },
     {
       id: "link-2",
@@ -60,7 +60,7 @@ export const DEFAULT_MICROSITE_DATA = {
       badgeColor: "bg-blue-600 text-white",
       highlight: false,
       customColor: "",
-      clicks: 3840,
+      clicks: 0,
     },
     {
       id: "link-3",
@@ -73,7 +73,7 @@ export const DEFAULT_MICROSITE_DATA = {
       badgeColor: "bg-emerald-600 text-white",
       highlight: false,
       customColor: "",
-      clicks: 890,
+      clicks: 0,
     },
     {
       id: "link-4",
@@ -86,7 +86,7 @@ export const DEFAULT_MICROSITE_DATA = {
       badgeColor: "bg-indigo-600 text-white",
       highlight: false,
       customColor: "",
-      clicks: 654,
+      clicks: 0,
     },
     {
       id: "link-5",
@@ -99,7 +99,7 @@ export const DEFAULT_MICROSITE_DATA = {
       badgeColor: "bg-green-500 text-slate-950",
       highlight: false,
       customColor: "",
-      clicks: 2190,
+      clicks: 0,
     },
   ],
   socials: {
@@ -124,7 +124,7 @@ export const DEFAULT_MICROSITES_LIST = [
     slug: "pmb-utama",
     category: "Pusat Admisi",
     status: "Active",
-    views: 14250,
+    views: 0,
     createdAt: "2026-08-01",
     updatedAt: "2026-09-02",
     data: { ...DEFAULT_MICROSITE_DATA }
@@ -135,7 +135,7 @@ export const DEFAULT_MICROSITES_LIST = [
     slug: "fakultas-teknik",
     category: "Fakultas",
     status: "Active",
-    views: 8930,
+    views: 0,
     createdAt: "2026-08-05",
     updatedAt: "2026-09-01",
     data: {
@@ -159,7 +159,7 @@ export const DEFAULT_MICROSITES_LIST = [
     slug: "fakultas-ekonomi-bisnis",
     category: "Fakultas",
     status: "Active",
-    views: 7420,
+    views: 0,
     createdAt: "2026-08-10",
     updatedAt: "2026-08-30",
     data: {
@@ -183,7 +183,7 @@ export const DEFAULT_MICROSITES_LIST = [
     slug: "fikt-upb",
     category: "Fakultas",
     status: "Active",
-    views: 5120,
+    views: 0,
     createdAt: "2026-08-12",
     updatedAt: "2026-08-28",
     data: {
@@ -207,7 +207,7 @@ export const DEFAULT_MICROSITES_LIST = [
     slug: "fakultas-hukum",
     category: "Fakultas",
     status: "Active",
-    views: 4310,
+    views: 0,
     createdAt: "2026-08-15",
     updatedAt: "2026-08-25",
     data: {

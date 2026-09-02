@@ -12,58 +12,73 @@ import {
   Clock,
   ExternalLink,
   Flame,
-  Globe
+  Globe,
+  Info
 } from 'lucide-react';
 import DynamicIcon from '../Common/DynamicIcon';
 import { 
   getLocalAnalytics, 
   getLocalActivityLogs, 
-  resetLocalAnalytics 
+  resetLocalAnalytics,
+  subscribeToSiteAnalytics
 } from '../../services/analyticsService';
 
 export default function AnalyticsSection({ site = {}, links = [], onResetClicks }) {
-  const [stats, setStats] = useState(() => getLocalAnalytics(site?.id) || { views: 0, clicks: {}, devices: { Mobile: 0, Desktop: 0, Tablet: 0 } });
-  const [activityLogs, setActivityLogs] = useState(() => getLocalActivityLogs(site?.id) || []);
+  const siteId = site?.id || 'site-pmb-utama';
+  const [stats, setStats] = useState(() => getLocalAnalytics(siteId));
+  const [activityLogs, setActivityLogs] = useState(() => getLocalActivityLogs(siteId));
 
-  // Polling for live real-time updates every 2.5 seconds
+  // Subscribe to real-time updates (Local + Cloud Firestore) & poll interval
   useEffect(() => {
-    const updateLiveStats = () => {
-      if (site?.id) {
-        setStats(getLocalAnalytics(site.id) || { views: 0, clicks: {}, devices: { Mobile: 0, Desktop: 0, Tablet: 0 } });
-        setActivityLogs(getLocalActivityLogs(site.id) || []);
-      }
-    };
+    if (!siteId) return;
 
-    updateLiveStats();
-    const interval = setInterval(updateLiveStats, 2500);
-    return () => clearInterval(interval);
-  }, [site?.id]);
+    // 1. Live subscription
+    const unsubscribe = subscribeToSiteAnalytics(siteId, (updatedStats) => {
+      if (updatedStats) {
+        setStats(updatedStats);
+      }
+    });
+
+    // 2. Poll activity logs every 2 seconds
+    const interval = setInterval(() => {
+      setStats(getLocalAnalytics(siteId));
+      setActivityLogs(getLocalActivityLogs(siteId));
+    }, 2000);
+
+    return () => {
+      unsubscribe();
+      clearInterval(interval);
+    };
+  }, [siteId]);
 
   const currentStats = stats || { views: 0, clicks: {}, devices: { Mobile: 0, Desktop: 0, Tablet: 0 } };
   const totalViews = currentStats.views || 0;
   
-  // Calculate total clicks combining link clicks + live recorded clicks
-  const computedClicksMap = { ...(currentStats.clicks || {}) };
+  // Real Recorded Clicks per Link
   const safeLinks = Array.isArray(links) ? links : [];
+  const computedClicksMap = {};
+  
   safeLinks.forEach(l => {
-    if (l && l.clicks) {
-      computedClicksMap[l.id] = (computedClicksMap[l.id] || 0) + l.clicks;
+    if (l && l.id) {
+      computedClicksMap[l.id] = (currentStats.clicks && typeof currentStats.clicks[l.id] === 'number') 
+        ? currentStats.clicks[l.id] 
+        : 0;
     }
   });
 
   const totalClicks = Object.values(computedClicksMap).reduce((acc, curr) => acc + (Number(curr) || 0), 0);
-  const ctr = totalViews > 0 ? ((totalClicks / totalViews) * 100).toFixed(1) : 0;
+  const ctr = totalViews > 0 ? ((totalClicks / totalViews) * 100).toFixed(1) : (0).toFixed(1);
 
-  // Device breakdown
+  // Real Device Breakdown
   const devices = currentStats.devices || { Mobile: 0, Desktop: 0, Tablet: 0 };
   const totalDeviceViews = (devices.Mobile || 0) + (devices.Desktop || 0) + (devices.Tablet || 0);
-  const mobilePct = totalDeviceViews > 0 ? Math.round(((devices.Mobile || 0) / totalDeviceViews) * 100) : 75;
-  const desktopPct = totalDeviceViews > 0 ? Math.round(((devices.Desktop || 0) / totalDeviceViews) * 100) : 20;
-  const tabletPct = totalDeviceViews > 0 ? Math.round(((devices.Tablet || 0) / totalDeviceViews) * 100) : 5;
+  const mobilePct = totalDeviceViews > 0 ? Math.round(((devices.Mobile || 0) / totalDeviceViews) * 100) : 0;
+  const desktopPct = totalDeviceViews > 0 ? Math.round(((devices.Desktop || 0) / totalDeviceViews) * 100) : 0;
+  const tabletPct = totalDeviceViews > 0 ? Math.round(((devices.Tablet || 0) / totalDeviceViews) * 100) : 0;
 
   const handleReset = () => {
-    if (window.confirm('Reset semua data statistik kunjungan dan klik untuk microsite ini?')) {
-      resetLocalAnalytics(site?.id);
+    if (window.confirm('Reset semua data statistik kunjungan dan klik untuk microsite ini menjadi 0?')) {
+      resetLocalAnalytics(siteId);
       if (onResetClicks) onResetClicks();
       setStats({ views: 0, clicks: {}, devices: { Mobile: 0, Desktop: 0, Tablet: 0 } });
       setActivityLogs([]);
@@ -92,11 +107,11 @@ export default function AnalyticsSection({ site = {}, links = [], onResetClicks 
               </h3>
               <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                 <Radio className="w-2.5 h-2.5 animate-pulse text-emerald-500" />
-                Live
+                Live Tracking Aktif
               </span>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Pantau kunjungan publik dan interaksi klik tombol tautan secara langsung
+              Pelacakan interaksi pengunjung dan klik tombol tautan secara nyata
             </p>
           </div>
         </div>
@@ -105,10 +120,10 @@ export default function AnalyticsSection({ site = {}, links = [], onResetClicks 
           type="button"
           onClick={handleReset}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold rounded-xl border border-slate-300 dark:border-slate-700 transition shadow-2xs"
-          title="Reset statistik klik & kunjungan"
+          title="Reset statistik klik & kunjungan ke 0"
         >
           <RotateCcw className="w-3.5 h-3.5" />
-          Reset
+          Reset ke 0
         </button>
       </div>
 
@@ -138,7 +153,7 @@ export default function AnalyticsSection({ site = {}, links = [], onResetClicks 
             {totalClicks.toLocaleString('id-ID')}
           </span>
           <span className="text-[10px] text-emerald-600 dark:text-emerald-400 block mt-0.5 font-bold">
-            Aktif Terhubung
+            Interaksi Nyata
           </span>
         </div>
 
@@ -160,7 +175,7 @@ export default function AnalyticsSection({ site = {}, links = [], onResetClicks 
       {/* Device Breakdown Card */}
       <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 space-y-3">
         <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center justify-between">
-          <span>Distribusi Perangkat Pengunjung</span>
+          <span>Distribusi Perangkat Pengunjung Asli</span>
           <span className="text-[11px] text-slate-400 lowercase font-normal">{totalDeviceViews} sesi terdeteksi</span>
         </h4>
 
@@ -171,6 +186,7 @@ export default function AnalyticsSection({ site = {}, links = [], onResetClicks 
               <span className="font-semibold text-[11px]">Smartphone</span>
             </div>
             <span className="font-black text-sm text-slate-800 dark:text-slate-100">{mobilePct}%</span>
+            <span className="text-[10px] text-slate-400 block">({devices.Mobile || 0} sesi)</span>
           </div>
 
           <div className="bg-white dark:bg-slate-900/80 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700/50 shadow-2xs">
@@ -179,6 +195,7 @@ export default function AnalyticsSection({ site = {}, links = [], onResetClicks 
               <span className="font-semibold text-[11px]">Desktop</span>
             </div>
             <span className="font-black text-sm text-slate-800 dark:text-slate-100">{desktopPct}%</span>
+            <span className="text-[10px] text-slate-400 block">({devices.Desktop || 0} sesi)</span>
           </div>
 
           <div className="bg-white dark:bg-slate-900/80 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700/50 shadow-2xs">
@@ -187,6 +204,7 @@ export default function AnalyticsSection({ site = {}, links = [], onResetClicks 
               <span className="font-semibold text-[11px]">Tablet</span>
             </div>
             <span className="font-black text-sm text-slate-800 dark:text-slate-100">{tabletPct}%</span>
+            <span className="text-[10px] text-slate-400 block">({devices.Tablet || 0} sesi)</span>
           </div>
         </div>
       </div>
@@ -194,40 +212,46 @@ export default function AnalyticsSection({ site = {}, links = [], onResetClicks 
       {/* Per-Link Breakdown Table */}
       <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 space-y-3.5">
         <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
-          Performa Klik Setiap Tombol Tautan
+          Performa Klik Setiap Tombol Tautan (Real Tracking)
         </h4>
 
-        <div className="space-y-2.5">
-          {sortedLinks.map((link) => {
-            const clicks = computedClicksMap[link.id] || 0;
-            const percentage = totalClicks > 0 ? ((clicks / totalClicks) * 100).toFixed(1) : 0;
+        {sortedLinks.length === 0 ? (
+          <div className="text-center py-4 text-xs text-slate-400">
+            Belum ada tombol tautan yang ditambahkan.
+          </div>
+        ) : (
+          <div className="space-y-2.5">
+            {sortedLinks.map((link) => {
+              const clicks = computedClicksMap[link.id] || 0;
+              const percentage = totalClicks > 0 ? ((clicks / totalClicks) * 100).toFixed(1) : 0;
 
-            return (
-              <div key={link.id} className="space-y-1.5 bg-white dark:bg-slate-900/60 p-3 rounded-xl border border-slate-200 dark:border-slate-700/50 shadow-2xs">
-                <div className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2 min-w-0 pr-2">
-                    <div className="p-1.5 bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 rounded-lg flex-shrink-0">
-                      <DynamicIcon name={link.icon || 'Globe'} className="w-3.5 h-3.5" />
+              return (
+                <div key={link.id} className="space-y-1.5 bg-white dark:bg-slate-900/60 p-3 rounded-xl border border-slate-200 dark:border-slate-700/50 shadow-2xs">
+                  <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2 min-w-0 pr-2">
+                      <div className="p-1.5 bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 rounded-lg flex-shrink-0">
+                        <DynamicIcon name={link.icon || 'Globe'} className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="font-bold text-slate-800 dark:text-slate-200 truncate">{link.title}</span>
                     </div>
-                    <span className="font-bold text-slate-800 dark:text-slate-200 truncate">{link.title}</span>
+                    <div className="text-right flex-shrink-0">
+                      <span className="font-bold font-mono text-amber-600 dark:text-amber-400">{clicks} klik</span>
+                      <span className="text-slate-400 text-[11px] ml-1">({percentage}%)</span>
+                    </div>
                   </div>
-                  <div className="text-right flex-shrink-0">
-                    <span className="font-bold font-mono text-amber-600 dark:text-amber-400">{clicks} klik</span>
-                    <span className="text-slate-400 text-[11px] ml-1">({percentage}%)</span>
-                  </div>
-                </div>
 
-                {/* Progress bar */}
-                <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                  <div 
-                    className="bg-gradient-to-r from-blue-500 to-indigo-600 h-full rounded-full transition-all duration-500"
-                    style={{ width: `${percentage}%` }}
-                  />
+                  {/* Progress bar */}
+                  <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                    <div 
+                      className="bg-gradient-to-r from-blue-500 to-indigo-600 h-full rounded-full transition-all duration-500"
+                      style={{ width: `${percentage}%` }}
+                    />
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Live Activity Log Stream */}
@@ -242,8 +266,9 @@ export default function AnalyticsSection({ site = {}, links = [], onResetClicks 
 
         <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
           {activityLogs.length === 0 ? (
-            <div className="text-center py-4 text-xs text-slate-400">
-              Belum ada aktivitas klik tercatat. Buka halaman publik dan klik tombol untuk melihat data langsung!
+            <div className="text-center py-4 text-xs text-slate-400 flex flex-col items-center justify-center gap-1">
+              <Info className="w-4 h-4 opacity-50" />
+              <span>Belum ada aktivitas klik tercatat. Buka halaman publik dan klik tombol untuk melihat data langsung secara real-time!</span>
             </div>
           ) : (
             activityLogs.map((log) => (
