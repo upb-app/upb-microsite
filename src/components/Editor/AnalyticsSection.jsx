@@ -21,16 +21,16 @@ import {
   resetLocalAnalytics 
 } from '../../services/analyticsService';
 
-export default function AnalyticsSection({ site, links, onResetClicks }) {
-  const [stats, setStats] = useState(() => getLocalAnalytics(site?.id));
-  const [activityLogs, setActivityLogs] = useState(() => getLocalActivityLogs(site?.id));
+export default function AnalyticsSection({ site = {}, links = [], onResetClicks }) {
+  const [stats, setStats] = useState(() => getLocalAnalytics(site?.id) || { views: 0, clicks: {}, devices: { Mobile: 0, Desktop: 0, Tablet: 0 } });
+  const [activityLogs, setActivityLogs] = useState(() => getLocalActivityLogs(site?.id) || []);
 
   // Polling for live real-time updates every 2.5 seconds
   useEffect(() => {
     const updateLiveStats = () => {
       if (site?.id) {
-        setStats(getLocalAnalytics(site.id));
-        setActivityLogs(getLocalActivityLogs(site.id));
+        setStats(getLocalAnalytics(site.id) || { views: 0, clicks: {}, devices: { Mobile: 0, Desktop: 0, Tablet: 0 } });
+        setActivityLogs(getLocalActivityLogs(site.id) || []);
       }
     };
 
@@ -39,22 +39,23 @@ export default function AnalyticsSection({ site, links, onResetClicks }) {
     return () => clearInterval(interval);
   }, [site?.id]);
 
-  // Compute metrics
-  const totalViews = stats.views || 0;
+  const currentStats = stats || { views: 0, clicks: {}, devices: { Mobile: 0, Desktop: 0, Tablet: 0 } };
+  const totalViews = currentStats.views || 0;
   
   // Calculate total clicks combining link clicks + live recorded clicks
-  const computedClicksMap = { ...stats.clicks };
-  links.forEach(l => {
-    if (l.clicks) {
+  const computedClicksMap = { ...(currentStats.clicks || {}) };
+  const safeLinks = Array.isArray(links) ? links : [];
+  safeLinks.forEach(l => {
+    if (l && l.clicks) {
       computedClicksMap[l.id] = (computedClicksMap[l.id] || 0) + l.clicks;
     }
   });
 
-  const totalClicks = Object.values(computedClicksMap).reduce((acc, curr) => acc + curr, 0);
+  const totalClicks = Object.values(computedClicksMap).reduce((acc, curr) => acc + (Number(curr) || 0), 0);
   const ctr = totalViews > 0 ? ((totalClicks / totalViews) * 100).toFixed(1) : 0;
 
   // Device breakdown
-  const devices = stats.devices || { Mobile: 0, Desktop: 0, Tablet: 0 };
+  const devices = currentStats.devices || { Mobile: 0, Desktop: 0, Tablet: 0 };
   const totalDeviceViews = (devices.Mobile || 0) + (devices.Desktop || 0) + (devices.Tablet || 0);
   const mobilePct = totalDeviceViews > 0 ? Math.round(((devices.Mobile || 0) / totalDeviceViews) * 100) : 75;
   const desktopPct = totalDeviceViews > 0 ? Math.round(((devices.Desktop || 0) / totalDeviceViews) * 100) : 20;
@@ -69,7 +70,7 @@ export default function AnalyticsSection({ site, links, onResetClicks }) {
     }
   };
 
-  const sortedLinks = [...links].sort((a, b) => {
+  const sortedLinks = [...safeLinks].sort((a, b) => {
     const clicksA = computedClicksMap[a.id] || 0;
     const clicksB = computedClicksMap[b.id] || 0;
     return clicksB - clicksA;
