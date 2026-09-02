@@ -19,14 +19,22 @@ import {
   serverTimestamp 
 } from 'firebase/firestore';
 
+// Helper pembersih nilai env (menghapus spasi dan tanda kutip yang tidak sengaja terbawa)
+const cleanEnv = (val, defaultVal = '') => {
+  if (!val) return defaultVal;
+  return String(val).replace(/^["']|["']$/g, '').trim();
+};
+
+const rawApiKey = cleanEnv(import.meta.env.VITE_FIREBASE_API_KEY);
+
 // Default / Environment Firebase Configuration
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyDemoKeyForUPBMicrositeHub2026",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "upb-microsite-hub.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "upb-microsite-hub",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "upb-microsite-hub.appspot.com",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "1029384756",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:1029384756:web:abcdef123456"
+  apiKey: rawApiKey || "AIzaSyDemoKeyForUPBMicrositeHub2026",
+  authDomain: cleanEnv(import.meta.env.VITE_FIREBASE_AUTH_DOMAIN, "upb-microsite-hub.firebaseapp.com"),
+  projectId: cleanEnv(import.meta.env.VITE_FIREBASE_PROJECT_ID, "upb-microsite-hub"),
+  storageBucket: cleanEnv(import.meta.env.VITE_FIREBASE_STORAGE_BUCKET, "upb-microsite-hub.appspot.com"),
+  messagingSenderId: cleanEnv(import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID, "1029384756"),
+  appId: cleanEnv(import.meta.env.VITE_FIREBASE_APP_ID, "1:1029384756:web:abcdef123456")
 };
 
 // Inisialisasi Firebase App
@@ -35,8 +43,9 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 
 export const isFirebaseConfigured = () => {
-  return (
-    import.meta.env.VITE_FIREBASE_API_KEY && 
-    import.meta.env.VITE_FIREBASE_API_KEY !== "AIzaSyDemoKeyForUPBMicrositeHub2026"
+  return Boolean(
+    rawApiKey && 
+    rawApiKey !== "AIzaSyDemoKeyForUPBMicrositeHub2026" &&
+    rawApiKey.startsWith("AIzaSy")
   );
 };
