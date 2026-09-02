@@ -21,8 +21,8 @@ const GRADIENT_PRESETS = [
 ];
 
 const BACKGROUND_IMAGES = [
-  { label: 'Gedung Rektorat & Plaza UPB', url: './img/upb-bg2.JPG' },
-  { label: 'Kampus Pelita Bangsa', url: './img/upb-bg.JPG' },
+  { label: 'Gedung Rektorat & Plaza UPB', url: '/img/upb-bg2.JPG' },
+  { label: 'Kampus Pelita Bangsa', url: '/img/upb-bg.JPG' },
   { label: 'Perpustakaan Digital', url: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=1600&auto=format&fit=crop&q=80' },
   { label: 'Teknologi & Smart Campus', url: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=1600&auto=format&fit=crop&q=80' },
 ];
