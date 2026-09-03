@@ -15,14 +15,19 @@ import {
   FacebookIcon,
 } from '../Common/BrandIcons';
 
-export default function ShareModal({ isOpen, onClose, data }) {
+export default function ShareModal({ isOpen, onClose, data, slug }) {
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedEmbed, setCopiedEmbed] = useState(false);
 
   if (!isOpen) return null;
 
-  const currentUrl = window.location.href;
-  const title = encodeURIComponent(`${data.profile.universityName} - ${data.profile.departmentName || 'Microsite Resmi'}`);
+  const origin = typeof window !== 'undefined' && window.location.origin.includes('localhost') 
+    ? window.location.origin 
+    : 'https://pmbupb.site';
+
+  const targetSlug = slug || 'pmb-utama';
+  const currentUrl = `${origin}/${targetSlug}`;
+  const title = encodeURIComponent(`${data?.profile?.universityName || 'Universitas Pelita Bangsa'} - ${data?.profile?.departmentName || 'Microsite Resmi'}`);
   const urlEncoded = encodeURIComponent(currentUrl);
 
   const shareLinks = [
@@ -58,7 +63,7 @@ export default function ShareModal({ isOpen, onClose, data }) {
     },
   ];
 
-  const iframeEmbed = `<iframe src="${currentUrl}" width="100%" height="700" style="border:none;border-radius:20px;" title="${data.profile.universityName} Microsite"></iframe>`;
+  const iframeEmbed = `<iframe src="${currentUrl}" width="100%" height="700" style="border:none;border-radius:20px;" title="${data?.profile?.universityName || 'UPB'} Microsite"></iframe>`;
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(currentUrl);
@@ -94,7 +99,7 @@ export default function ShareModal({ isOpen, onClose, data }) {
 
         {/* Copy Direct Link */}
         <div className="space-y-1.5">
-          <label className="block text-xs font-semibold text-slate-300">Tautan Langsung (Direct Link)</label>
+          <label className="block text-xs font-semibold text-slate-300">Tautan Langsung (Clean URL)</label>
           <div className="flex items-center gap-2">
             <input
               type="text"

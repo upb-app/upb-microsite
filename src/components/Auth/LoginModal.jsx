@@ -31,9 +31,9 @@ export default function LoginModal({ isOpen, onClose, onSuccessLogin }) {
       if (result.success) {
         confetti({ particleCount: 70, spread: 60 });
         if (window.history.pushState) {
-          window.history.pushState(null, '', '/dasbor');
+          window.history.pushState(null, '', '/s/dasbor');
         } else {
-          window.location.hash = '/dasbor';
+          window.location.hash = '/s/dasbor';
         }
         if (onSuccessLogin) {
           onSuccessLogin(result.user);

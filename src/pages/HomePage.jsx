@@ -270,14 +270,14 @@ export default function HomePage() {
 
             {/* Portal Pengelola Link */}
             <a
-              href="/dasbor"
+              href="/s/dasbor"
               onClick={(e) => {
                 e.preventDefault();
                 if (window.history.pushState) {
-                  window.history.pushState(null, '', '/dasbor');
+                  window.history.pushState(null, '', '/s/dasbor');
                   window.dispatchEvent(new PopStateEvent('popstate'));
                 } else {
-                  window.location.href = '/dasbor';
+                  window.location.href = '/s/dasbor';
                 }
               }}
               className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition ${

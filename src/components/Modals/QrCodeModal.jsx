@@ -2,11 +2,16 @@ import React, { useEffect, useRef } from 'react';
 import { X, Download, QrCode, Sparkles, Check, Copy } from 'lucide-react';
 import QRCode from 'qrcode';
 
-export default function QrCodeModal({ isOpen, onClose, data }) {
+export default function QrCodeModal({ isOpen, onClose, data, slug }) {
   const canvasRef = useRef(null);
   const [copied, setCopied] = React.useState(false);
 
-  const micrositeUrl = window.location.href.split('#')[0];
+  const origin = typeof window !== 'undefined' && window.location.origin.includes('localhost') 
+    ? window.location.origin 
+    : 'https://pmbupb.site';
+  
+  const targetSlug = slug || 'pmb-utama';
+  const micrositeUrl = `${origin}/${targetSlug}`;
 
   useEffect(() => {
     if (isOpen && canvasRef.current) {
@@ -28,7 +33,7 @@ export default function QrCodeModal({ isOpen, onClose, data }) {
   const handleDownload = () => {
     if (canvasRef.current) {
       const link = document.createElement('a');
-      link.download = `QR-UPB-${data.profile.universityName.replace(/\s+/g, '_')}.png`;
+      link.download = `QR-UPB-${(data?.profile?.universityName || 'UPB').replace(/\s+/g, '_')}.png`;
       link.href = canvasRef.current.toDataURL('image/png');
       link.click();
     }
@@ -58,7 +63,7 @@ export default function QrCodeModal({ isOpen, onClose, data }) {
             <QrCode className="w-6 h-6" />
           </div>
           <h3 className="text-base font-bold text-slate-100">QR Code Microsite Resmi</h3>
-          <p className="text-xs text-slate-400 mt-1">{data.profile.universityName}</p>
+          <p className="text-xs text-slate-400 mt-1">{data?.profile?.universityName || 'UNIVERSITAS PELITA BANGSA'}</p>
         </div>
 
         {/* QR Canvas Box */}
@@ -66,8 +71,8 @@ export default function QrCodeModal({ isOpen, onClose, data }) {
           <canvas ref={canvasRef} className="rounded-lg" />
         </div>
 
-        <p className="text-[11px] text-slate-400">
-          Scan QR Code ini menggunakan kamera smartphone untuk membuka microsite kampus.
+        <p className="text-[11px] text-slate-400 font-mono">
+          {micrositeUrl}
         </p>
 
         {/* Actions */}

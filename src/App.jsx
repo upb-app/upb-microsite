@@ -21,12 +21,28 @@ import MicrositeManagerModal from './components/Admin/MicrositeManagerModal';
 import { DEFAULT_MICROSITE_DATA, DEFAULT_MICROSITES_LIST } from './data/defaultData';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
-import { Layers, ExternalLink, Send, Radio } from 'lucide-react';
+import { Layers, ExternalLink, Send, Radio, Lock } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { recordLinkClick } from './services/analyticsService';
 
 const MICROSITES_STORAGE_KEY = 'upb_multi_microsites_list_v2';
 const ACTIVE_SITE_KEY = 'upb_active_microsite_id_v2';
+
+// Reserved system routes that cannot be used as public microsite slugs
+const RESERVED_PATHS = [
+  '',
+  's',
+  'dasbor',
+  'dashboard',
+  'asup',
+  'login',
+  'admin',
+  'assets',
+  'img',
+  'favicon.ico',
+  'robots.txt',
+  'sitemap.xml'
+];
 
 function MainAppContent() {
   const { currentUser, isSuperadmin } = useAuth();
@@ -91,52 +107,93 @@ function MainAppContent() {
   }, [microsites, activeSiteId]);
 
   // URL Path router helpers
+  const isLoginRoute = () => {
+    const path = window.location.pathname.toLowerCase();
+    const hash = window.location.hash.toLowerCase();
+    const search = window.location.search.toLowerCase();
+    
+    return (
+      path === '/s/asup' ||
+      path.startsWith('/s/asup') ||
+      path === '/asup' ||
+      path.startsWith('/asup') ||
+      path === '/login' ||
+      path.startsWith('/login') ||
+      hash.includes('/s/asup') ||
+      hash.includes('asup') ||
+      hash.includes('login') ||
+      search.includes('asup') ||
+      search.includes('login')
+    );
+  };
+
   const isDashboardRoute = () => {
     const path = window.location.pathname.toLowerCase();
     const hash = window.location.hash.toLowerCase();
     const search = window.location.search.toLowerCase();
+    
     return (
-      path.includes('/dasbor') || 
-      path.includes('/dashboard') || 
-      hash.includes('/dasbor') || 
+      path === '/s/dasbor' ||
+      path.startsWith('/s/dasbor') ||
+      path === '/dasbor' ||
+      path.startsWith('/dasbor') ||
+      path === '/dashboard' ||
+      path.startsWith('/dashboard') ||
+      hash.includes('/s/dasbor') ||
       hash.includes('dasbor') ||
+      hash.includes('dashboard') ||
       search.includes('dasbor')
     );
   };
 
   const getPublicSlug = () => {
-    const hash = window.location.hash;
     const path = window.location.pathname;
-    
-    // Check hash route format '#/s/[slug]'
-    if (hash.startsWith('#/s/')) {
-      return hash.replace('#/s/', '').split('?')[0].split('/')[0].trim().toLowerCase();
-    }
-    // Check path format '/s/[slug]'
+    const hash = window.location.hash;
+
+    // 1. Check legacy '/s/[slug]' (e.g. '/s/fakultas-teknik')
     if (path.startsWith('/s/')) {
-      return path.replace('/s/', '').split('?')[0].split('/')[0].trim().toLowerCase();
+      const segment = path.replace('/s/', '').split('?')[0].split('/')[0].trim().toLowerCase();
+      if (segment && !['dasbor', 'dashboard', 'asup', 'login'].includes(segment)) {
+        return segment;
+      }
     }
+
+    // 2. Check clean root path '/[slug]' (e.g. '/pmb-utama', '/fakultas-teknik')
+    const firstSegment = path.split('/')[1]?.split('?')[0]?.trim().toLowerCase();
+    if (firstSegment && !RESERVED_PATHS.includes(firstSegment)) {
+      return firstSegment;
+    }
+
+    // 3. Check hash format '#/s/[slug]' or '#/[slug]'
+    if (hash.startsWith('#/s/')) {
+      const segment = hash.replace('#/s/', '').split('?')[0].split('/')[0].trim().toLowerCase();
+      if (segment && !['dasbor', 'dashboard', 'asup', 'login'].includes(segment)) {
+        return segment;
+      }
+    } else if (hash.startsWith('#/')) {
+      const segment = hash.replace('#/', '').split('?')[0].split('/')[0].trim().toLowerCase();
+      if (segment && !RESERVED_PATHS.includes(segment)) {
+        return segment;
+      }
+    }
+
     return null;
   };
 
-  // Route State: 'home' | 'dashboard' | 'public-site'
-  const [route, setRoute] = useState(() => {
-    if (getPublicSlug()) return 'public-site';
+  const determineRoute = () => {
+    if (isLoginRoute()) return 'login';
     if (isDashboardRoute()) return 'dashboard';
+    if (getPublicSlug()) return 'public-site';
     return 'home';
-  });
+  };
+
+  // Route State: 'home' | 'dashboard' | 'login' | 'public-site'
+  const [route, setRoute] = useState(determineRoute);
 
   // Listen for browser navigation changes
   useEffect(() => {
     const checkRoute = () => {
-      const slug = getPublicSlug();
-      if (slug) {
-        setRoute('public-site');
-      } else if (isDashboardRoute()) {
-        setRoute('dashboard');
-      } else {
-        setRoute('home');
-      }
+      setRoute(determineRoute());
     };
 
     window.addEventListener('popstate', checkRoute);
@@ -150,16 +207,23 @@ function MainAppContent() {
   const navigateTo = (newRoute, slug) => {
     if (newRoute === 'dashboard') {
       if (window.history.pushState) {
-        window.history.pushState(null, '', '/dasbor');
+        window.history.pushState(null, '', '/s/dasbor');
       } else {
-        window.location.hash = '/dasbor';
+        window.location.hash = '/s/dasbor';
       }
       setRoute('dashboard');
+    } else if (newRoute === 'login') {
+      if (window.history.pushState) {
+        window.history.pushState(null, '', '/s/asup');
+      } else {
+        window.location.hash = '/s/asup';
+      }
+      setRoute('login');
     } else if (newRoute === 'public-site' && slug) {
       if (window.history.pushState) {
-        window.history.pushState(null, '', `/s/${slug}`);
+        window.history.pushState(null, '', `/${slug}`);
       } else {
-        window.location.hash = `/s/${slug}`;
+        window.location.hash = `/${slug}`;
       }
       setRoute('public-site');
     } else {
@@ -267,56 +331,59 @@ function MainAppContent() {
   };
 
   const handleCreateSite = ({ title, slug, category, tagline }) => {
+    const newId = `site-${slug}-${Date.now()}`;
     const newSite = {
-      id: `site-${Date.now()}`,
+      id: newId,
       title,
       slug,
-      category: category || 'Fakultas',
+      category: category || 'Pusat Admisi',
+      status: 'Active',
+      views: 0,
       createdAt: new Date().toISOString().split('T')[0],
       updatedAt: new Date().toISOString().split('T')[0],
-      views: 0,
-      isPublished: true,
       data: {
         ...DEFAULT_MICROSITE_DATA,
         profile: {
           ...DEFAULT_MICROSITE_DATA.profile,
-          title,
-          tagline: tagline || 'Portal Resmi Universitas Pelita Bangsa',
-          bio: `Pusat informasi dan layanan digital terpadu untuk ${title} Universitas Pelita Bangsa.`
+          departmentName: title,
+          tagline: tagline || DEFAULT_MICROSITE_DATA.profile.tagline,
         }
       }
     };
 
-    setMicrosites(prev => [newSite, ...prev]);
-    setActiveSiteId(newSite.id);
+    setMicrosites([...microsites, newSite]);
+    setActiveSiteId(newId);
+    setPreviewData(newSite.data);
+    confetti({ particleCount: 70, spread: 60 });
   };
 
   const handleDuplicateSite = (siteId) => {
-    const target = microsites.find(s => s.id === siteId);
-    if (!target) return;
+    const source = microsites.find(s => s.id === siteId);
+    if (!source) return;
 
-    const copySite = {
-      ...target,
-      id: `site-${Date.now()}`,
-      title: `${target.title} (Salinan)`,
-      slug: `${target.slug}-copy-${Math.floor(Math.random() * 1000)}`,
+    const newId = `site-${source.slug}-copy-${Date.now()}`;
+    const newSite = {
+      ...source,
+      id: newId,
+      title: `${source.title} (Salinan)`,
+      slug: `${source.slug}-salinan`,
+      views: 0,
       createdAt: new Date().toISOString().split('T')[0],
       updatedAt: new Date().toISOString().split('T')[0],
-      views: 0,
-      data: JSON.parse(JSON.stringify(target.data))
+      data: JSON.parse(JSON.stringify(source.data))
     };
 
-    setMicrosites(prev => [copySite, ...prev]);
-    setActiveSiteId(copySite.id);
-    confetti({ particleCount: 50 });
+    setMicrosites([...microsites, newSite]);
+    setActiveSiteId(newId);
+    setPreviewData(newSite.data);
+    confetti({ particleCount: 50, spread: 50 });
   };
 
   const handleDeleteSite = (siteId) => {
     if (microsites.length <= 1) {
-      alert('Tidak dapat menghapus satu-satunya microsite yang tersisa.');
+      alert('Tidak dapat menghapus microsite utama terakhir.');
       return;
     }
-
     const remaining = microsites.filter(s => s.id !== siteId);
     setMicrosites(remaining);
     if (activeSiteId === siteId) {
@@ -325,7 +392,7 @@ function MainAppContent() {
   };
 
   // ----------------------------------------------------------------------
-  // SCENARIO 0: STANDALONE PUBLIC MICROSITE VIEW (`/#/s/[slug]`)
+  // SCENARIO 0: STANDALONE CLEAN PUBLIC MICROSITE VIEW (`/[slug]`)
   // Accessible to anyone without login or dashboard chrome
   // ----------------------------------------------------------------------
   if (route === 'public-site') {
@@ -366,7 +433,45 @@ function MainAppContent() {
   }
 
   // ----------------------------------------------------------------------
-  // SCENARIO 2: ACCESSED VIA '/dasbor' BUT NOT LOGGED IN
+  // SCENARIO 2: ACCESSED VIA '/s/asup' (LOGIN DEDICATED ROUTE)
+  // ----------------------------------------------------------------------
+  if (route === 'login') {
+    // If user is already authenticated, redirect straight to dashboard
+    if (currentUser) {
+      navigateTo('dashboard');
+      return null;
+    }
+
+    return (
+      <div className={`min-h-screen flex items-center justify-center p-4 font-sans relative transition-colors ${
+        isDark ? 'bg-[#040914] text-slate-100' : 'bg-[#f4f7fb] text-slate-900'
+      }`}>
+        <div className="absolute top-4 left-4 z-10">
+          <button
+            onClick={() => navigateTo('home')}
+            className={`px-3.5 py-1.5 text-xs font-bold rounded-xl border transition ${
+              isDark 
+                ? 'bg-white/10 hover:bg-white/20 text-white border-white/15' 
+                : 'bg-white hover:bg-slate-100 text-slate-800 border-slate-300 shadow-sm'
+            }`}
+          >
+            ← Kembali ke Beranda
+          </button>
+        </div>
+
+        <LoginModal
+          isOpen={true}
+          onClose={() => navigateTo('home')}
+          onSuccessLogin={() => {
+            navigateTo('dashboard');
+          }}
+        />
+      </div>
+    );
+  }
+
+  // ----------------------------------------------------------------------
+  // SCENARIO 3: ACCESSED VIA '/s/dasbor' BUT NOT LOGGED IN
   // ----------------------------------------------------------------------
   if (!currentUser) {
     return (
@@ -390,12 +495,7 @@ function MainAppContent() {
           isOpen={true}
           onClose={() => navigateTo('home')}
           onSuccessLogin={() => {
-            if (window.history.pushState) {
-              window.history.pushState(null, '', '/dasbor');
-            } else {
-              window.location.hash = '/dasbor';
-            }
-            setRoute('dashboard');
+            navigateTo('dashboard');
           }}
         />
       </div>
@@ -403,7 +503,7 @@ function MainAppContent() {
   }
 
   // ----------------------------------------------------------------------
-  // SCENARIO 3: ACCESSED VIA '/dasbor' AND AUTHENTICATED
+  // SCENARIO 4: ACCESSED VIA '/s/dasbor' AND AUTHENTICATED
   // Clean, Uncluttered Studio with Light Default & Theme Toggle
   // ----------------------------------------------------------------------
   return (
@@ -448,7 +548,7 @@ function MainAppContent() {
               {currentMicrosite.title}
             </span>
             <span className="text-slate-400 font-mono text-[11px] hidden md:inline">
-              (pmbupb.site/s/{currentMicrosite.slug})
+              (pmbupb.site/{currentMicrosite.slug})
             </span>
             <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
               isDark ? 'bg-white/10 text-amber-400 border-white/10' : 'bg-blue-50 text-blue-800 border-blue-200'
@@ -587,34 +687,54 @@ function MainAppContent() {
         }}
       />
 
-      {/* Modals */}
+      {/* QR Code Modal */}
       <QrCodeModal
         isOpen={isQrModalOpen}
         onClose={() => setIsQrModalOpen(false)}
         data={previewData}
+        slug={currentMicrosite.slug}
       />
 
+      {/* Export / Import Modal */}
       <ExportModal
         isOpen={isExportModalOpen}
         onClose={() => setIsExportModalOpen(false)}
         data={data}
-        onImportData={(imported) => updateActiveSiteData(imported)}
+        microsites={microsites}
+        onImportData={(importedData) => {
+          updateActiveSiteData(importedData);
+          setPreviewData(importedData);
+        }}
+        onImportMicrosites={(importedList) => {
+          setMicrosites(importedList);
+          if (importedList.length > 0) {
+            setActiveSiteId(importedList[0].id);
+            setPreviewData(importedList[0].data);
+          }
+        }}
       />
 
+      {/* Share Modal */}
       <ShareModal
         isOpen={isShareModalOpen}
         onClose={() => setIsShareModalOpen(false)}
-        data={data}
+        data={previewData}
+        slug={currentMicrosite.slug}
       />
 
+      {/* Live Public Fullscreen View Modal */}
       <PublicViewModal
         isOpen={isPublicViewOpen}
         onClose={() => setIsPublicViewOpen(false)}
         data={previewData}
         onLinkClick={handleLinkClick}
-        onOpenQr={() => setIsQrModalOpen(true)}
+        onOpenQr={() => {
+          setIsPublicViewOpen(false);
+          setIsQrModalOpen(true);
+        }}
       />
 
+      {/* Superadmin User Management Modal */}
       <UserManagementModal
         isOpen={isUserManagementOpen}
         onClose={() => setIsUserManagementOpen(false)}
@@ -626,10 +746,10 @@ function MainAppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <ThemeProvider>
+    <ThemeProvider>
+      <AuthProvider>
         <MainAppContent />
-      </ThemeProvider>
-    </AuthProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

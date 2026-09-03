@@ -23,7 +23,7 @@ export default class ErrorBoundary extends React.Component {
       localStorage.removeItem('upb_realtime_analytics_data_v2');
       localStorage.removeItem('upb_realtime_activity_logs_v2');
     } catch (e) {}
-    window.location.href = '/dasbor';
+    window.location.href = '/s/dasbor';
   };
 
   handleGoHome = () => {

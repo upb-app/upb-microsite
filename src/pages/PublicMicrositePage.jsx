@@ -59,8 +59,11 @@ export default function PublicMicrositePage({ site, onGoHome }) {
   };
 
   const handleCopyLink = () => {
-    const currentUrl = window.location.href;
-    navigator.clipboard.writeText(currentUrl);
+    const origin = window.location.origin.includes('localhost') 
+      ? window.location.origin 
+      : 'https://pmbupb.site';
+    const cleanUrl = `${origin}/${site?.slug || 'pmb-utama'}`;
+    navigator.clipboard.writeText(cleanUrl);
     setCopied(true);
     confetti({ particleCount: 40, spread: 50, origin: { y: 0.8 } });
     setTimeout(() => setCopied(false), 2000);

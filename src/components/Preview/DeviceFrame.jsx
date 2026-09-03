@@ -141,7 +141,7 @@ export default function DeviceFrame({
                 <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
               </div>
               <div className="flex-1 max-w-xs mx-auto bg-slate-950 px-3 py-0.5 rounded-md text-[11px] text-slate-400 text-center truncate border border-slate-800">
-                https://pmbupb.site/s/pmb-utama
+                https://pmbupb.site/pmb-utama
               </div>
             </div>
 

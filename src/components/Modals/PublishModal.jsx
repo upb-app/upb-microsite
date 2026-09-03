@@ -25,12 +25,12 @@ export default function PublishModal({
 
   if (!isOpen || !microsite) return null;
 
-  // Clean Public URL without '#' (Standard HTML5 History on Vercel)
+  // Clean Public URL without '/s/' (Standard clean URL on Vercel e.g. pmbupb.site/pmb-utama)
   const origin = window.location.origin.includes('localhost') 
     ? window.location.origin 
     : 'https://pmbupb.site';
   
-  const publicUrl = `${origin}/s/${microsite.slug}`;
+  const publicUrl = `${origin}/${microsite.slug}`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(publicUrl);
