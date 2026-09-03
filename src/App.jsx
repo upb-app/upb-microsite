@@ -22,7 +22,7 @@ import MicrositeManagerModal from './components/Admin/MicrositeManagerModal';
 import { DEFAULT_MICROSITE_DATA, DEFAULT_MICROSITES_LIST } from './data/defaultData';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
-import { Layers, ExternalLink, Send, Radio, Lock } from 'lucide-react';
+import { Layers, ExternalLink, Send } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { recordLinkClick } from './services/analyticsService';
 
@@ -38,16 +38,17 @@ const RESERVED_PATHS = [
   'asup',
   'login',
   'admin',
-  '404',
   'assets',
   'img',
   'favicon.ico',
   'robots.txt',
-  'sitemap.xml'
+  'sitemap.xml',
+  '404',
+  '404.html'
 ];
 
 function MainAppContent() {
-  const { currentUser, isSuperadmin, authLoading } = useAuth();
+  const { currentUser } = useAuth();
   const { isDark } = useTheme();
 
   // Multi-microsites state
@@ -148,12 +149,6 @@ function MainAppContent() {
     );
   };
 
-  const is404Route = () => {
-    const path = window.location.pathname.toLowerCase();
-    const hash = window.location.hash.toLowerCase();
-    return path === '/404' || hash.includes('404');
-  };
-
   const getPublicSlug = () => {
     const path = window.location.pathname;
     const hash = window.location.hash;
@@ -161,7 +156,7 @@ function MainAppContent() {
     // 1. Check legacy '/s/[slug]' (e.g. '/s/fakultas-teknik')
     if (path.startsWith('/s/')) {
       const segment = path.replace('/s/', '').split('?')[0].split('/')[0].trim().toLowerCase();
-      if (segment && !['dasbor', 'dashboard', 'asup', 'login', '404'].includes(segment)) {
+      if (segment && !['dasbor', 'dashboard', 'asup', 'login'].includes(segment)) {
         return segment;
       }
     }
@@ -175,7 +170,7 @@ function MainAppContent() {
     // 3. Check hash format '#/s/[slug]' or '#/[slug]'
     if (hash.startsWith('#/s/')) {
       const segment = hash.replace('#/s/', '').split('?')[0].split('/')[0].trim().toLowerCase();
-      if (segment && !['dasbor', 'dashboard', 'asup', 'login', '404'].includes(segment)) {
+      if (segment && !['dasbor', 'dashboard', 'asup', 'login'].includes(segment)) {
         return segment;
       }
     } else if (hash.startsWith('#/')) {
@@ -189,14 +184,24 @@ function MainAppContent() {
   };
 
   const determineRoute = () => {
-    if (is404Route()) return '404';
     if (isLoginRoute()) return 'login';
     if (isDashboardRoute()) return 'dashboard';
-    if (getPublicSlug()) return 'public-site';
+    
+    const slug = getPublicSlug();
+    if (slug) {
+      const exists = microsites.some(s => s.slug === slug) || slug === 'pmb-utama';
+      return exists ? 'public-site' : 'not-found';
+    }
+
+    const path = window.location.pathname;
+    if (path !== '/' && path !== '' && path !== '/index.html') {
+      return 'not-found';
+    }
+
     return 'home';
   };
 
-  // Route State: 'home' | 'dashboard' | 'login' | 'public-site' | '404'
+  // Route State: 'home' | 'dashboard' | 'login' | 'public-site' | 'not-found'
   const [route, setRoute] = useState(determineRoute);
 
   // Listen for browser navigation changes
@@ -211,7 +216,7 @@ function MainAppContent() {
       window.removeEventListener('popstate', checkRoute);
       window.removeEventListener('hashchange', checkRoute);
     };
-  }, []);
+  }, [microsites]);
 
   const navigateTo = (newRoute, slug) => {
     if (newRoute === 'dashboard') {
@@ -235,13 +240,8 @@ function MainAppContent() {
         window.location.hash = `/${slug}`;
       }
       setRoute('public-site');
-    } else if (newRoute === '404') {
-      if (window.history.pushState) {
-        window.history.pushState(null, '', '/404');
-      } else {
-        window.location.hash = '/404';
-      }
-      setRoute('404');
+    } else if (newRoute === 'not-found') {
+      setRoute('not-found');
     } else {
       if (window.history.pushState) {
         window.history.pushState(null, '', '/');
@@ -408,35 +408,27 @@ function MainAppContent() {
   };
 
   // ----------------------------------------------------------------------
-  // SCENARIO 0: LOADING AUTHENTICATION STATE
+  // SCENARIO 0: 404 NOT FOUND PAGE
+  // Triggered when unknown paths or non-existent slugs are requested
   // ----------------------------------------------------------------------
-  if (authLoading) {
+  if (route === 'not-found') {
     return (
-      <div className={`min-h-screen flex flex-col items-center justify-center p-4 font-sans ${
-        isDark ? 'bg-[#040914] text-slate-100' : 'bg-[#f4f7fb] text-slate-900'
-      }`}>
-        <div className="w-10 h-10 border-3 border-blue-600 border-t-transparent rounded-full animate-spin mb-3"></div>
-        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Memverifikasi Sesi PMB UPB...</p>
-      </div>
+      <NotFoundPage onGoHome={() => navigateTo('home')} />
     );
   }
 
   // ----------------------------------------------------------------------
-  // SCENARIO 1: EXPLICIT 404 NOT FOUND PAGE
-  // ----------------------------------------------------------------------
-  if (route === '404') {
-    return <NotFoundPage onGoHome={() => navigateTo('home')} />;
-  }
-
-  // ----------------------------------------------------------------------
-  // SCENARIO 2: STANDALONE CLEAN PUBLIC MICROSITE VIEW (`/[slug]`)
+  // SCENARIO 1: STANDALONE CLEAN PUBLIC MICROSITE VIEW (`/[slug]`)
+  // Accessible to anyone without login or dashboard chrome
   // ----------------------------------------------------------------------
   if (route === 'public-site') {
     const publicSlug = getPublicSlug();
-    const publicSite = microsites.find(s => s.slug === publicSlug);
+    const publicSite = microsites.find(s => s.slug === publicSlug) || (publicSlug === 'pmb-utama' ? currentMicrosite : null);
 
     if (!publicSite) {
-      return <NotFoundPage onGoHome={() => navigateTo('home')} />;
+      return (
+        <NotFoundPage onGoHome={() => navigateTo('home')} />
+      );
     }
 
     return (
@@ -448,7 +440,7 @@ function MainAppContent() {
   }
 
   // ----------------------------------------------------------------------
-  // SCENARIO 3: ACCESSED VIA '/' (HOME PMB PORTAL)
+  // SCENARIO 2: ACCESSED VIA '/' (HOME PMB PORTAL)
   // ----------------------------------------------------------------------
   if (route === 'home') {
     return (
@@ -467,16 +459,17 @@ function MainAppContent() {
           isOpen={isQrModalOpen}
           onClose={() => setIsQrModalOpen(false)}
           data={previewData}
+          slug={currentMicrosite?.slug}
         />
       </div>
     );
   }
 
   // ----------------------------------------------------------------------
-  // SCENARIO 4: ACCESSED VIA '/s/asup' (DEDICATED SECURE LOGIN ROUTE)
+  // SCENARIO 3: ACCESSED VIA '/s/asup' (LOGIN DEDICATED ROUTE)
   // ----------------------------------------------------------------------
   if (route === 'login') {
-    // If user is already authenticated, redirect straight to /s/dasbor
+    // If user is already authenticated, redirect straight to dashboard
     if (currentUser) {
       navigateTo('dashboard');
       return null;
@@ -511,15 +504,17 @@ function MainAppContent() {
   }
 
   // ----------------------------------------------------------------------
-  // SCENARIO 5: SECURITY GUARD FOR '/s/dasbor' (AUTHENTICATION REQUIRED)
-  // IF NOT LOGGED IN, RENDER 404 NOT FOUND TO HIDE DASHBOARD EXISTENCE
+  // SCENARIO 4: ACCESSED VIA '/s/dasbor' BUT NOT LOGGED IN
+  // Stealth Security: Render 404 Not Found so unauthorized visitors cannot see the dashboard URL
   // ----------------------------------------------------------------------
-  if (route === 'dashboard' && !currentUser) {
-    return <NotFoundPage onGoHome={() => navigateTo('home')} />;
+  if (!currentUser) {
+    return (
+      <NotFoundPage onGoHome={() => navigateTo('home')} />
+    );
   }
 
   // ----------------------------------------------------------------------
-  // SCENARIO 6: ACCESSED VIA '/s/dasbor' AND AUTHENTICATED
+  // SCENARIO 5: ACCESSED VIA '/s/dasbor' AND AUTHENTICATED
   // Clean, Uncluttered Studio with Light Default & Theme Toggle
   // ----------------------------------------------------------------------
   return (

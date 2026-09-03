@@ -11,8 +11,7 @@ import {
 import { auth, isFirebaseConfigured } from '../services/firebase';
 import { 
   signInWithEmailAndPassword, 
-  signOut as firebaseSignOut,
-  onAuthStateChanged
+  signOut as firebaseSignOut 
 } from 'firebase/auth';
 
 const USERS_STORAGE_KEY = 'upb_auth_users_db_v2';
@@ -67,8 +66,6 @@ export function AuthProvider({ children }) {
     }
   });
 
-  const [authLoading, setAuthLoading] = useState(true);
-
   const [users, setUsers] = useState(() => {
     try {
       const saved = localStorage.getItem(USERS_STORAGE_KEY);
@@ -76,35 +73,6 @@ export function AuthProvider({ children }) {
     } catch (e) {}
     return DEFAULT_USERS;
   });
-
-  // Check initial Auth State (Session Storage & Firebase Auth)
-  useEffect(() => {
-    try {
-      const saved = sessionStorage.getItem(SESSION_STORAGE_KEY);
-      if (saved) {
-        setCurrentUser(JSON.parse(saved));
-      }
-    } catch (e) {}
-
-    if (isFirebaseConfigured() && auth) {
-      const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
-        if (fbUser) {
-          const userProfile = {
-            id: fbUser.uid,
-            name: fbUser.displayName || 'Administrator UPB',
-            email: fbUser.email,
-            role: 'superadmin',
-            status: 'active'
-          };
-          setCurrentUser(userProfile);
-        }
-        setAuthLoading(false);
-      });
-      return () => unsubscribe();
-    } else {
-      setAuthLoading(false);
-    }
-  }, []);
 
   // Save users DB
   useEffect(() => {
@@ -354,7 +322,6 @@ export function AuthProvider({ children }) {
 
   const value = {
     currentUser,
-    authLoading,
     isSuperadmin,
     users,
     login,

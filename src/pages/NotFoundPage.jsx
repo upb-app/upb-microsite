@@ -1,106 +1,99 @@
 import React from 'react';
-import { Home, ArrowLeft, AlertCircle, Compass, HelpCircle, GraduationCap } from 'lucide-react';
+import { ShieldAlert, Home, ArrowLeft, Globe, HelpCircle } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 
 export default function NotFoundPage({ onGoHome }) {
   const { isDark } = useTheme();
 
-  const handleHome = () => {
+  const handleHomeClick = (e) => {
+    if (e) e.preventDefault();
     if (onGoHome) {
       onGoHome();
     } else {
-      window.location.href = '/';
+      if (window.history.pushState) {
+        window.history.pushState(null, '', '/');
+        window.dispatchEvent(new PopStateEvent('popstate'));
+      } else {
+        window.location.href = '/';
+      }
     }
   };
 
   return (
-    <div className={`min-h-screen flex flex-col items-center justify-center p-4 sm:p-6 font-sans relative overflow-hidden transition-colors ${
+    <div className={`min-h-screen flex items-center justify-center p-4 font-sans relative overflow-hidden transition-colors ${
       isDark ? 'bg-[#040914] text-slate-100' : 'bg-[#f4f7fb] text-slate-900'
     }`}>
       
-      {/* Background Decorative Glows */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 bg-blue-600/10 dark:bg-blue-600/15 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 w-72 h-72 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+      {/* Background Decorative Glow */}
+      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-blue-600/10 dark:bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-10 right-10 w-72 h-72 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
 
-      {/* Main 404 Container */}
-      <div className="relative z-10 max-w-lg w-full text-center space-y-6">
+      <div className={`relative w-full max-w-lg border rounded-3xl shadow-2xl p-6 sm:p-10 text-center space-y-6 transition-all ${
+        isDark 
+          ? 'bg-[#071326]/90 border-white/15 backdrop-blur-xl' 
+          : 'bg-white/95 border-slate-200 backdrop-blur-xl'
+      }`}>
         
-        {/* UPB Logo / Brand */}
-        <div className="flex items-center justify-center gap-3">
-          <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-blue-700 via-blue-600 to-indigo-600 p-0.5 shadow-xl flex items-center justify-center">
-            <div className={`w-full h-full rounded-[14px] flex items-center justify-center ${
-              isDark ? 'bg-[#071326]' : 'bg-white'
+        {/* Error Badge & Icon */}
+        <div className="space-y-3">
+          <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-rose-600 via-rose-500 to-amber-500 p-0.5 mx-auto shadow-xl shadow-rose-600/20 flex items-center justify-center animate-bounce">
+            <div className={`w-full h-full rounded-[22px] flex items-center justify-center ${
+              isDark ? 'bg-[#071326] text-rose-400' : 'bg-white text-rose-600'
             }`}>
-              <GraduationCap className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+              <ShieldAlert className="w-10 h-10" />
             </div>
           </div>
-          <div className="text-left">
-            <span className="block text-sm font-black tracking-tight text-slate-900 dark:text-white uppercase leading-tight">
-              UNIVERSITAS PELITA BANGSA
-            </span>
-            <span className="block text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-              Pusat Penerimaan Mahasiswa Baru
-            </span>
+
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+            <span>Error 404 • Not Found</span>
           </div>
         </div>
 
-        {/* 404 Graphic & Error Code */}
-        <div className={`border rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-md space-y-4 ${
+        {/* Text Details */}
+        <div className="space-y-2">
+          <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-slate-900 dark:text-white">
+            404
+          </h1>
+          <h2 className="text-base sm:text-lg font-bold text-slate-800 dark:text-slate-200">
+            Halaman Tidak Ditemukan
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed max-w-sm mx-auto">
+            Halaman yang Anda tuju tidak tersedia, telah dipindahkan, atau alamat URL yang Anda masukkan salah.
+          </p>
+        </div>
+
+        {/* Security / System Notice */}
+        <div className={`p-3.5 rounded-2xl border text-xs text-left flex items-start gap-2.5 ${
           isDark 
-            ? 'bg-[#071326]/90 border-white/15' 
-            : 'bg-white/95 border-slate-200'
+            ? 'bg-[#040914]/80 border-white/10 text-slate-400' 
+            : 'bg-slate-50 border-slate-200 text-slate-600'
         }`}>
-          
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 mx-auto">
-            <AlertCircle className="w-10 h-10" />
-          </div>
-
-          <div>
-            <h1 className="text-5xl sm:text-6xl font-black tracking-tight font-mono text-slate-900 dark:text-white">
-              404
-            </h1>
-            <h2 className="text-lg sm:text-xl font-extrabold text-slate-800 dark:text-slate-200 mt-1">
-              Halaman Tidak Ditemukan
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-2 max-w-sm mx-auto leading-relaxed">
-              Tautan atau halaman yang Anda tuju tidak tersedia, telah dipindahkan, atau Anda tidak memiliki akses ke alamat ini.
-            </p>
-          </div>
-
-          {/* Quick Action Navigation */}
-          <div className="pt-3 flex flex-col sm:flex-row items-center justify-center gap-3">
-            <button
-              type="button"
-              onClick={handleHome}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs sm:text-sm rounded-2xl shadow-lg shadow-blue-600/20 transition transform active:scale-98"
-            >
-              <Home className="w-4 h-4" />
-              <span>Kembali ke Beranda Utama</span>
-            </button>
-
-            <a
-              href="https://sibara.pelitabangsa.ac.id/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-3 rounded-2xl text-xs sm:text-sm font-bold border transition ${
-                isDark 
-                  ? 'bg-white/5 hover:bg-white/10 text-slate-200 border-white/10' 
-                  : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300'
-              }`}
-            >
-              <Compass className="w-4 h-4 text-amber-500" />
-              <span>Daftar Kuliah (SIBARA)</span>
-            </a>
-          </div>
-
+          <HelpCircle className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
+          <p className="text-[11px] leading-relaxed">
+            Jika Anda adalah staf pengelola PMB Universitas Pelita Bangsa, pastikan Anda telah mengakses portal resmi melalui pintu otentikasi yang sah.
+          </p>
         </div>
 
-        {/* Footer info */}
-        <p className="text-[11px] text-slate-400">
-          © {new Date().getFullYear()} Biro Admisi & Humas Universitas Pelita Bangsa (UPB).
-        </p>
+        {/* Action Button */}
+        <div className="pt-2">
+          <a
+            href="/"
+            onClick={handleHomeClick}
+            className="w-full flex items-center justify-center gap-2 py-3.5 px-5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs sm:text-sm rounded-2xl shadow-lg shadow-blue-600/30 transition transform active:scale-98"
+          >
+            <Home className="w-4 h-4" />
+            <span>Kembali ke Beranda Utama UPB</span>
+          </a>
+        </div>
+
+        {/* Footer Brand */}
+        <div className="text-[11px] text-slate-400 dark:text-slate-500 flex items-center justify-center gap-1.5 pt-2">
+          <Globe className="w-3.5 h-3.5" />
+          <span>Universitas Pelita Bangsa • PMB Official</span>
+        </div>
 
       </div>
+
     </div>
   );
 }
