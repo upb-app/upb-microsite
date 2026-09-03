@@ -483,18 +483,39 @@ export default function LinksSection({ links = [], setLinks }) {
                     </button>
                   </div>
 
-                  {/* Judul & Subtitle */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
+                  {/* Icon & Title Row */}
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                    <div className="flex items-center gap-2.5 p-2 bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 rounded-xl flex-shrink-0">
+                      <div className="p-2 rounded-lg bg-amber-500/10 text-amber-500">
+                        <DynamicIcon name={link.icon || 'Globe'} className="w-5 h-5" />
+                      </div>
+                      <div className="min-w-0 pr-1">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Icon Tombol</span>
+                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block truncate max-w-[90px]">{link.icon || 'Globe'}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setActiveIconPicker(link.id)}
+                        className="px-2.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-lg transition shadow-2xs"
+                      >
+                        Pilih Icon
+                      </button>
+                    </div>
+
+                    <div className="flex-1 min-w-0">
                       <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Judul Tombol</label>
                       <input
                         type="text"
                         value={link.title || ''}
                         onChange={(e) => handleUpdateLink(link.id, 'title', e.target.value)}
                         placeholder="Contoh: Penerimaan Mahasiswa Baru"
-                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-500 transition"
+                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-500 transition font-bold"
                       />
                     </div>
+                  </div>
+
+                  {/* Subtitle & URL */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Sub-judul / Keterangan</label>
                       <input
@@ -505,18 +526,16 @@ export default function LinksSection({ links = [], setLinks }) {
                         className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-500 transition"
                       />
                     </div>
-                  </div>
-
-                  {/* URL Tautan */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">URL Tujuan / Link Website</label>
-                    <input
-                      type="url"
-                      value={link.url || ''}
-                      onChange={(e) => handleUpdateLink(link.id, 'url', e.target.value)}
-                      placeholder="https://pmb.pelitabangsa.ac.id"
-                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-500 font-mono transition"
-                    />
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">URL Tujuan / Link Website</label>
+                      <input
+                        type="url"
+                        value={link.url || ''}
+                        onChange={(e) => handleUpdateLink(link.id, 'url', e.target.value)}
+                        placeholder="https://pmb.pelitabangsa.ac.id"
+                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-500 font-mono transition"
+                      />
+                    </div>
                   </div>
 
                   {/* ------------------------------------------------------------- */}
@@ -771,6 +790,10 @@ export default function LinksSection({ links = [], setLinks }) {
           onClose={() => setActiveIconPicker(null)}
           currentIcon={safeLinks.find(l => l.id === activeIconPicker)?.icon || 'Globe'}
           onSelect={(newIcon) => {
+            handleUpdateLink(activeIconPicker, 'icon', newIcon);
+            setActiveIconPicker(null);
+          }}
+          onSelectIcon={(newIcon) => {
             handleUpdateLink(activeIconPicker, 'icon', newIcon);
             setActiveIconPicker(null);
           }}
