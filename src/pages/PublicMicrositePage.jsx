@@ -155,49 +155,6 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
     return <NotFoundPage onGoHome={onGoHome} />;
   }
 
-  // If site is marked as Inactive by Admin, display clean maintenance page
-  const isSiteInactive = currentSite.status === 'Inactive' || currentSite.isActive === false;
-  if (!isLoading && isSiteInactive) {
-    return (
-      <div className="min-h-screen bg-[#040914] text-white flex flex-col items-center justify-between p-4 sm:p-6 font-sans">
-        <div />
-        <div className="max-w-md w-full mx-auto text-center space-y-5 bg-[#071326]/90 border border-white/15 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-md">
-          <div className="w-20 h-20 rounded-3xl bg-white p-2 mx-auto shadow-xl ring-4 ring-amber-500/20 flex items-center justify-center">
-            <img src={DEFAULT_LOGO} alt="UPB" className="w-full h-full object-contain" />
-          </div>
-
-          <div className="space-y-2">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase bg-amber-500/15 text-amber-400 border border-amber-500/30">
-              <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-              Tutup Sementara
-            </span>
-            <h1 className="text-xl sm:text-2xl font-black text-white">
-              {currentSite.title || 'Universitas Pelita Bangsa'}
-            </h1>
-            <p className="text-xs text-slate-300 leading-relaxed max-w-sm mx-auto">
-              Halaman microsite ini sedang dinonaktifkan sementara untuk pemeliharaan data atau penyesuaian gelombang pendaftaran baru oleh administrator.
-            </p>
-          </div>
-
-          <div className="pt-2 space-y-2.5">
-            <a
-              href="https://pelitabangsa.ac.id"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl border border-blue-500/40 transition block shadow-lg"
-            >
-              Kunjungi Portal Utama UPB
-            </a>
-          </div>
-        </div>
-
-        <footer className="text-xs text-slate-500 text-center py-2">
-          © {new Date().getFullYear()} Universitas Pelita Bangsa
-        </footer>
-      </div>
-    );
-  }
-
   const rawData = currentSite.data || matchingPreset?.data || DEFAULT_MICROSITE_DATA;
 
   const profile = {

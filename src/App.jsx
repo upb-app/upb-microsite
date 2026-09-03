@@ -492,30 +492,6 @@ function MainAppContent() {
     }
   };
 
-  const handleToggleSiteStatus = (siteId) => {
-    const targetId = siteId || activeSiteId;
-    const updated = microsites.map(site => {
-      if (site.id === targetId) {
-        const nextStatus = (site.status === 'Inactive' || site.isActive === false) ? 'Active' : 'Inactive';
-        const modifiedSite = {
-          ...site,
-          status: nextStatus,
-          isActive: nextStatus === 'Active',
-          data: {
-            ...(site.data || DEFAULT_MICROSITE_DATA),
-            status: nextStatus,
-            isActive: nextStatus === 'Active'
-          },
-          updatedAt: new Date().toISOString().split('T')[0]
-        };
-        publishMicrositeToCloud(modifiedSite).catch(() => {});
-        return modifiedSite;
-      }
-      return site;
-    });
-    setMicrosites(updated);
-  };
-
   // ----------------------------------------------------------------------
   // SCENARIO 0: 404 NOT FOUND PAGE
   // Triggered when unknown paths or non-existent slugs are requested
@@ -760,7 +736,6 @@ function MainAppContent() {
                 site={currentMicrosite}
                 updateSiteMeta={updateSiteMeta}
                 microsites={microsites}
-                onToggleSiteStatus={handleToggleSiteStatus}
               />
             )}
 
@@ -826,7 +801,6 @@ function MainAppContent() {
         onDuplicateSite={handleDuplicateSite}
         onDeleteSite={handleDeleteSite}
         onUpdateSite={handleUpdateSite}
-        onToggleSiteStatus={handleToggleSiteStatus}
       />
 
       {/* Publish & Share Modal */}
