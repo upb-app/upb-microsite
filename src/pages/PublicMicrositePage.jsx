@@ -53,6 +53,11 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
         setCloudSite(data);
         setIsLoading(false);
       }
+    }, () => {
+      if (isMounted) {
+        setCloudSite(null);
+        setIsLoading(false);
+      }
     });
 
     // BroadcastChannel Listener untuk sinkronisasi antar-tab dalam browser yang sama
@@ -122,6 +127,56 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
     }
   }, [activeSlug, currentSiteId, currentSite?.data]);
 
+  const rawData = currentSite?.data || {};
+
+  const mergedData = {
+    profile: {
+      universityName: rawData.profile?.universityName || rawData.profile?.title || currentSite?.title || 'Universitas Pelita Bangsa',
+      departmentName: rawData.profile?.departmentName || '',
+      tagline: rawData.profile?.tagline || '',
+      bio: rawData.profile?.bio || '',
+      avatarUrl: rawData.profile?.avatarUrl || DEFAULT_LOGO,
+      headerBannerUrl: rawData.profile?.headerBannerUrl || rawData.profile?.bannerUrl || '/img/upb-bg2.JPG',
+      showBanner: rawData.profile?.showBanner !== false,
+      isVerified: rawData.profile?.isVerified !== false,
+      badgeText: rawData.profile?.badgeText || '',
+      location: rawData.profile?.location || '',
+      email: rawData.profile?.email || '',
+      title: rawData.profile?.title || currentSite?.title || rawData.profile?.universityName || 'Universitas Pelita Bangsa'
+    },
+    theme: rawData.theme || DEFAULT_MICROSITE_DATA.theme,
+    buttonStyle: rawData.buttonStyle || DEFAULT_MICROSITE_DATA.buttonStyle,
+    socials: rawData.socials || DEFAULT_MICROSITE_DATA.socials,
+    links: Array.isArray(rawData.links) ? rawData.links : []
+  };
+
+  // 3. Dynamic Browser Title & Meta Tags (Unconditionally declared hook before any early returns)
+  useEffect(() => {
+    if (mergedData?.profile && currentSite?.data) {
+      const p = mergedData.profile;
+      const displayTitle = p.departmentName 
+        ? `${p.departmentName} - ${p.universityName}`
+        : `${p.universityName} • ${p.tagline || 'Portal PMB Resmi'}`;
+      document.title = displayTitle;
+
+      const desc = p.tagline ? `${p.tagline} • ${p.bio || ''}` : (p.bio || 'Portal Resmi Universitas Pelita Bangsa');
+      
+      const setMeta = (selector, attr, val) => {
+        let tag = document.querySelector(selector);
+        if (tag) tag.setAttribute(attr, val);
+      };
+
+      setMeta('meta[name="description"]', 'content', desc);
+      setMeta('meta[property="og:title"]', 'content', displayTitle);
+      setMeta('meta[property="og:description"]', 'content', desc);
+      if (p.headerBannerUrl || p.avatarUrl) {
+        const img = p.headerBannerUrl || p.avatarUrl;
+        const fullImg = img.startsWith('http') ? img : `https://pmbupb.site${img.startsWith('/') ? '' : '/'}${img}`;
+        setMeta('meta[property="og:image"]', 'content', fullImg);
+      }
+    }
+  }, [mergedData.profile, currentSite?.data]);
+
   // Check if site data is available
   const hasValidData = Boolean(
     cloudSite?.data || 
@@ -151,57 +206,7 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
     return <NotFoundPage onGoHome={onGoHome} />;
   }
 
-  const rawData = currentSite?.data || {};
-
-  const mergedData = {
-    profile: {
-      universityName: rawData.profile?.universityName || rawData.profile?.title || currentSite?.title || 'Universitas Pelita Bangsa',
-      departmentName: rawData.profile?.departmentName || '',
-      tagline: rawData.profile?.tagline || '',
-      bio: rawData.profile?.bio || '',
-      avatarUrl: rawData.profile?.avatarUrl || DEFAULT_LOGO,
-      headerBannerUrl: rawData.profile?.headerBannerUrl || rawData.profile?.bannerUrl || '/img/upb-bg2.JPG',
-      showBanner: rawData.profile?.showBanner !== false,
-      isVerified: rawData.profile?.isVerified !== false,
-      badgeText: rawData.profile?.badgeText || '',
-      location: rawData.profile?.location || '',
-      email: rawData.profile?.email || '',
-      title: rawData.profile?.title || currentSite?.title || rawData.profile?.universityName || 'Universitas Pelita Bangsa'
-    },
-    theme: rawData.theme || DEFAULT_MICROSITE_DATA.theme,
-    buttonStyle: rawData.buttonStyle || DEFAULT_MICROSITE_DATA.buttonStyle,
-    socials: rawData.socials || DEFAULT_MICROSITE_DATA.socials,
-    links: Array.isArray(rawData.links) ? rawData.links : []
-  };
-
   const links = mergedData.links;
-
-  // Dynamic Browser Title & Meta Tags for Client-Side View
-  useEffect(() => {
-    if (mergedData?.profile) {
-      const p = mergedData.profile;
-      const displayTitle = p.departmentName 
-        ? `${p.departmentName} - ${p.universityName}`
-        : `${p.universityName} • ${p.tagline || 'Portal PMB Resmi'}`;
-      document.title = displayTitle;
-
-      const desc = p.tagline ? `${p.tagline} • ${p.bio || ''}` : (p.bio || 'Portal Resmi Universitas Pelita Bangsa');
-      
-      const setMeta = (selector, attr, val) => {
-        let tag = document.querySelector(selector);
-        if (tag) tag.setAttribute(attr, val);
-      };
-
-      setMeta('meta[name="description"]', 'content', desc);
-      setMeta('meta[property="og:title"]', 'content', displayTitle);
-      setMeta('meta[property="og:description"]', 'content', desc);
-      if (p.headerBannerUrl || p.avatarUrl) {
-        const img = p.headerBannerUrl || p.avatarUrl;
-        const fullImg = img.startsWith('http') ? img : `https://pmbupb.site${img.startsWith('/') ? '' : '/'}${img}`;
-        setMeta('meta[property="og:image"]', 'content', fullImg);
-      }
-    }
-  }, [mergedData.profile]);
 
   const handleLinkClick = (linkId) => {
     const targetLink = links.find(l => l.id === linkId);
