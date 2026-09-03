@@ -11,7 +11,8 @@ import {
   Radio,
   Clock,
   Flame,
-  Info
+  Info,
+  Globe
 } from 'lucide-react';
 import DynamicIcon from '../Common/DynamicIcon';
 import { 
@@ -24,6 +25,8 @@ import {
 export default function AnalyticsSection({ site = {}, links = [], onResetClicks }) {
   const siteId = site?.id || 'site-pmb-utama';
   const siteSlug = site?.slug || 'pmb-utama';
+  const siteTitle = site?.title || 'Universitas Pelita Bangsa';
+
   const [stats, setStats] = useState(() => getLocalAnalytics(siteId, siteSlug));
   const [activityLogs, setActivityLogs] = useState(() => getLocalActivityLogs(siteId, siteSlug));
 
@@ -77,12 +80,21 @@ export default function AnalyticsSection({ site = {}, links = [], onResetClicks 
     // 5. Polling fallback every 1.5 second
     const interval = setInterval(refreshData, 1500);
 
-    // 6. Firebase Cloud Firestore real-time subscription
-    const unsubscribe = subscribeToSiteAnalytics(siteId, siteSlug, (updatedStats) => {
-      if (updatedStats) {
-        setStats({ ...updatedStats });
+    // 6. Firebase Cloud Firestore real-time subscription (Metrics + Live Click Events)
+    const unsubscribe = subscribeToSiteAnalytics(
+      siteId, 
+      siteSlug, 
+      (updatedStats) => {
+        if (updatedStats) {
+          setStats({ ...updatedStats });
+        }
+      },
+      (updatedLogs) => {
+        if (updatedLogs && updatedLogs.length > 0) {
+          setActivityLogs([...updatedLogs]);
+        }
       }
-    });
+    );
 
     return () => {
       if (channel) channel.close();
@@ -119,7 +131,7 @@ export default function AnalyticsSection({ site = {}, links = [], onResetClicks 
   const tabletPct = totalDeviceViews > 0 ? Math.round(((devices.Tablet || 0) / totalDeviceViews) * 100) : 0;
 
   const handleReset = () => {
-    if (window.confirm('Reset semua data statistik kunjungan dan klik untuk microsite ini menjadi 0?')) {
+    if (window.confirm(`Reset semua data statistik kunjungan dan klik untuk microsite "${siteTitle}" menjadi 0?`)) {
       resetLocalAnalytics(siteId, siteSlug);
       if (onResetClicks) onResetClicks();
       setStats({ views: 0, clicks: {}, devices: { Mobile: 0, Desktop: 0, Tablet: 0 } });
@@ -136,25 +148,30 @@ export default function AnalyticsSection({ site = {}, links = [], onResetClicks 
   return (
     <div className="p-4 sm:p-5 space-y-5 animate-fadeIn text-left">
       
-      {/* Header Info */}
+      {/* Header Info & Active Site Indicator */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4">
         <div className="flex items-center gap-2.5">
           <span className="p-2 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-xl flex-shrink-0">
             <BarChart3 className="w-5 h-5" />
           </span>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                Statistik & Analitik Nyata
+                Statistik & Analitik Real-Time
               </h3>
               <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                 <Radio className="w-2.5 h-2.5 animate-pulse text-emerald-500" />
                 Live Tracking Aktif
               </span>
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Merekam setiap kunjungan dan klik tombol dari pengunjung asli secara otomatis
-            </p>
+            
+            <div className="flex items-center gap-1.5 mt-1 text-xs text-slate-500 dark:text-slate-400">
+              <Globe className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+              <span>Memantau microsite:</span>
+              <span className="font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded-md border border-blue-200 dark:border-blue-800">
+                {siteTitle} (/{siteSlug})
+              </span>
+            </div>
           </div>
         </div>
 
@@ -257,14 +274,14 @@ export default function AnalyticsSection({ site = {}, links = [], onResetClicks 
       <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 space-y-3.5">
         <div className="flex items-center justify-between">
           <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
-            Performa Klik Setiap Tombol Tautan (Real Tracking)
+            Performa Klik Setiap Tombol Tautan ({siteTitle})
           </h4>
           <span className="text-[11px] text-slate-400">Diperbarui saat tombol diklik</span>
         </div>
 
         {sortedLinks.length === 0 ? (
           <div className="text-center py-4 text-xs text-slate-400">
-            Belum ada tombol tautan yang ditambahkan.
+            Belum ada tombol tautan yang ditambahkan ke microsite ini.
           </div>
         ) : (
           <div className="space-y-2.5">
@@ -316,7 +333,7 @@ export default function AnalyticsSection({ site = {}, links = [], onResetClicks 
           {activityLogs.length === 0 ? (
             <div className="text-center py-4 text-xs text-slate-400 flex flex-col items-center justify-center gap-1">
               <Info className="w-4 h-4 opacity-50" />
-              <span>Belum ada interaksi tercatat. Statistik akan otomatis bertambah ketika ada pengunjung yang membuka dan mengklik tombol tautan Anda di internet.</span>
+              <span>Belum ada interaksi tercatat untuk {siteTitle}. Statistik akan otomatis bertambah ketika ada pengunjung yang membuka dan mengklik tombol tautan Anda di internet.</span>
             </div>
           ) : (
             activityLogs.map((log) => (

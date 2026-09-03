@@ -6,7 +6,6 @@ import { db, isFirebaseConfigured } from './firebase';
 import { 
   doc, 
   setDoc, 
-  getDoc, 
   increment, 
   onSnapshot, 
   collection, 
@@ -101,7 +100,7 @@ export async function recordPageView(siteId, slug) {
     }
   } catch (e) {}
 
-  // 2. Broadcast ke semua tab terbuka (termasuk tab dasbor dari incognito)
+  // 2. Broadcast ke semua tab terbuka
   try {
     const channel = getBroadcastChannel();
     if (channel) {
@@ -124,6 +123,7 @@ export async function recordPageView(siteId, slug) {
         slug: cleanSlug,
         views: increment(1),
         [`devices.${device}`]: increment(1),
+        [`devices_${device}`]: increment(1),
         lastUpdated: serverTimestamp()
       }, { merge: true }).catch(() => {});
     } catch (e) {}
@@ -217,6 +217,7 @@ export async function recordLinkClick(siteId, linkId, linkTitle, linkUrl, slug) 
       const statsDocRef = doc(db, 'microsite_analytics', cleanSlug);
       setDoc(statsDocRef, {
         [`clicks.${linkId}`]: increment(1),
+        [`clicks_${linkId}`]: increment(1),
         totalClicks: increment(1),
         lastUpdated: serverTimestamp()
       }, { merge: true }).catch(() => {});
@@ -268,39 +269,90 @@ export function getLocalActivityLogs(siteId, slug) {
 /**
  * Subscribe ke update analitik real-time (Lokal + Firestore + Broadcast)
  */
-export function subscribeToSiteAnalytics(siteId, slug, onUpdate) {
+export function subscribeToSiteAnalytics(siteId, slug, onStatsUpdate, onLogsUpdate) {
   const cleanSlug = slug || (siteId ? siteId.replace(/^site-/, '') : 'pmb-utama');
   
-  if (onUpdate) {
-    onUpdate(getLocalAnalytics(siteId, slug));
+  if (onStatsUpdate) {
+    onStatsUpdate(getLocalAnalytics(siteId, slug));
+  }
+  if (onLogsUpdate) {
+    onLogsUpdate(getLocalActivityLogs(siteId, slug));
   }
 
   if (isFirebaseConfigured() && db) {
     try {
+      // 1. Subscribe to document metrics
       const statsDocRef = doc(db, 'microsite_analytics', cleanSlug);
-      const unsubscribe = onSnapshot(statsDocRef, (docSnap) => {
+      const unsubStats = onSnapshot(statsDocRef, (docSnap) => {
         if (docSnap.exists()) {
           const cloudData = docSnap.data();
           const local = getLocalAnalytics(siteId, slug);
 
+          const cloudClicks = {};
+          if (cloudData.clicks && typeof cloudData.clicks === 'object') {
+            Object.assign(cloudClicks, cloudData.clicks);
+          }
+          Object.keys(cloudData).forEach(k => {
+            if (k.startsWith('clicks.')) {
+              cloudClicks[k.replace('clicks.', '')] = Number(cloudData[k]) || 0;
+            } else if (k.startsWith('clicks_')) {
+              cloudClicks[k.replace('clicks_', '')] = Number(cloudData[k]) || 0;
+            }
+          });
+
+          const cloudDevices = {
+            Mobile: Number(cloudData.devices?.Mobile || cloudData['devices.Mobile'] || cloudData.devices_Mobile || 0),
+            Desktop: Number(cloudData.devices?.Desktop || cloudData['devices.Desktop'] || cloudData.devices_Desktop || 0),
+            Tablet: Number(cloudData.devices?.Tablet || cloudData['devices.Tablet'] || cloudData.devices_Tablet || 0),
+          };
+
+          const mergedClicks = { ...(local.clicks || {}) };
+          Object.keys(cloudClicks).forEach(k => {
+            mergedClicks[k] = Math.max(mergedClicks[k] || 0, cloudClicks[k]);
+          });
+
           const merged = {
-            views: Math.max(local.views || 0, cloudData.views || 0),
-            clicks: {
-              ...(local.clicks || {}),
-              ...(cloudData.clicks || {})
-            },
+            views: Math.max(local.views || 0, Number(cloudData.views) || 0),
+            clicks: mergedClicks,
             devices: {
-              Mobile: Math.max(local.devices?.Mobile || 0, cloudData.devices?.Mobile || 0),
-              Desktop: Math.max(local.devices?.Desktop || 0, cloudData.devices?.Desktop || 0),
-              Tablet: Math.max(local.devices?.Tablet || 0, cloudData.devices?.Tablet || 0),
+              Mobile: Math.max(local.devices?.Mobile || 0, cloudDevices.Mobile),
+              Desktop: Math.max(local.devices?.Desktop || 0, cloudDevices.Desktop),
+              Tablet: Math.max(local.devices?.Tablet || 0, cloudDevices.Tablet),
             }
           };
 
-          if (onUpdate) onUpdate(merged);
+          if (onStatsUpdate) onStatsUpdate(merged);
         }
       }, () => {});
 
-      return unsubscribe;
+      // 2. Subscribe to live click events subcollection
+      const eventsRef = collection(db, 'microsite_analytics', cleanSlug, 'click_events');
+      const unsubEvents = onSnapshot(eventsRef, (snapshot) => {
+        const events = [];
+        snapshot.forEach(docSnap => {
+          const item = docSnap.data();
+          events.push({
+            id: docSnap.id,
+            siteId,
+            slug: cleanSlug,
+            linkId: item.linkId,
+            linkTitle: item.linkTitle,
+            linkUrl: item.linkUrl,
+            device: item.device || 'Mobile',
+            timestamp: item.timestamp?.toDate ? item.timestamp.toDate().toISOString() : (item.timestamp || new Date().toISOString())
+          });
+        });
+        
+        events.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        if (onLogsUpdate && events.length > 0) {
+          onLogsUpdate(events.slice(0, 50));
+        }
+      }, () => {});
+
+      return () => {
+        unsubStats();
+        unsubEvents();
+      };
     } catch (e) {}
   }
 
