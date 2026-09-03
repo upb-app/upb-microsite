@@ -33,6 +33,19 @@ export const RESERVED_SLUGS = [
   'portal'
 ];
 
+let sharedBroadcastChannel = null;
+function getBroadcastChannel() {
+  if (typeof BroadcastChannel === 'undefined') return null;
+  if (!sharedBroadcastChannel) {
+    try {
+      sharedBroadcastChannel = new BroadcastChannel('upb_microsites_channel');
+    } catch (e) {
+      return null;
+    }
+  }
+  return sharedBroadcastChannel;
+}
+
 /**
  * Sanitasi Slug URL agar 100% aman (Hanya a-z, 0-9, dan '-')
  */
@@ -132,16 +145,22 @@ export async function publishMicrositeToCloud(microsite) {
     }
   }
 
-  // 2. Broadcast Channel untuk sinkronisasi instan antar-tab di browser
+  // 2. Simpan cache lokal per slug untuk lookup instan
   try {
-    if (typeof BroadcastChannel !== 'undefined') {
-      const channel = new BroadcastChannel('upb_microsites_channel');
-      channel.postMessage({ type: 'MICROSITE_UPDATED', slug: cleanSlug, site: payload });
-      channel.close();
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(`upb_site_slug_${cleanSlug}`, JSON.stringify(payload));
     }
   } catch (e) {}
 
-  // 3. Dispatch window custom event
+  // 3. Broadcast Channel untuk sinkronisasi instan antar-tab di browser
+  try {
+    const channel = getBroadcastChannel();
+    if (channel) {
+      channel.postMessage({ type: 'MICROSITE_UPDATED', slug: cleanSlug, site: payload });
+    }
+  } catch (e) {}
+
+  // 4. Dispatch window custom event
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('upb-microsite-published', { detail: payload }));
   }
@@ -156,17 +175,33 @@ export async function fetchPublishedMicrosite(slug) {
   if (!slug) return null;
   const cleanSlug = sanitizeSlug(slug);
 
+  // 1. Cek Firestore Cloud
   if (isFirebaseConfigured() && db) {
     try {
       const docRef = doc(db, 'published_microsites', cleanSlug);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
-        return docSnap.data();
+        const data = docSnap.data();
+        if (data && typeof localStorage !== 'undefined') {
+          localStorage.setItem(`upb_site_slug_${cleanSlug}`, JSON.stringify(data));
+        }
+        return data;
       }
     } catch (err) {
       console.warn('Error fetching cloud microsite for slug', cleanSlug, err.message);
     }
   }
+
+  // 2. Fallback ke local cache per slug
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const cached = localStorage.getItem(`upb_site_slug_${cleanSlug}`);
+      if (cached) {
+        return JSON.parse(cached);
+      }
+    }
+  } catch (e) {}
+
   return null;
 }
 
@@ -182,7 +217,13 @@ export function subscribeToPublishedMicrosite(slug, onUpdate) {
       const docRef = doc(db, 'published_microsites', cleanSlug);
       const unsubscribe = onSnapshot(docRef, (docSnap) => {
         if (docSnap.exists()) {
-          onUpdate(docSnap.data());
+          const data = docSnap.data();
+          onUpdate(data);
+          try {
+            if (typeof localStorage !== 'undefined') {
+              localStorage.setItem(`upb_site_slug_${cleanSlug}`, JSON.stringify(data));
+            }
+          } catch (e) {}
         }
       }, (err) => {
         console.warn('Firestore snapshot notice for slug:', cleanSlug, err.message);
@@ -207,6 +248,9 @@ export async function deleteMicrositeFromCloud(slug, siteId) {
       await deleteDoc(doc(db, 'published_microsites', cleanSlug));
       if (siteId) {
         await deleteDoc(doc(db, 'microsites_registry', siteId));
+      }
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem(`upb_site_slug_${cleanSlug}`);
       }
     } catch (err) {
       console.warn('Error deleting cloud microsite:', err);

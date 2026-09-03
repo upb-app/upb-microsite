@@ -72,10 +72,34 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
       }
     } catch (e) {}
 
+    // 4. Storage event listener (sync saat admin edit di tab dasbor)
+    const handleStorage = (e) => {
+      if (e.key === 'upb_multi_microsites_list_v2' && e.newValue) {
+        try {
+          const list = JSON.parse(e.newValue);
+          const found = list.find(s => s.slug === activeSlug);
+          if (found && isMounted) {
+            setCloudSite(found);
+          }
+        } catch (err) {}
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+
+    // 5. Custom Event listener
+    const handleCustom = (e) => {
+      if (e.detail && e.detail.slug === activeSlug && isMounted) {
+        setCloudSite(e.detail);
+      }
+    };
+    window.addEventListener('upb-microsite-published', handleCustom);
+
     return () => {
       isMounted = false;
       if (unsubscribe) unsubscribe();
       if (channel) channel.close();
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('upb-microsite-published', handleCustom);
     };
   }, [activeSlug]);
 
