@@ -111,30 +111,26 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
     };
   }, [activeSlug]);
 
-  // Merge Priority: Cloud Data -> Initial Passed Site -> Matching Official Preset -> Clean Baseline
-  const isOfficialPresetSlug = DEFAULT_MICROSITES_LIST.some(s => s.slug === activeSlug);
-  const matchingPreset = isOfficialPresetSlug ? DEFAULT_MICROSITES_LIST.find(s => s.slug === activeSlug) : null;
-
-  const currentSite = cloudSite || (initialSite?.data ? initialSite : null) || matchingPreset || {};
-  const currentSiteId = currentSite.id || `site-${activeSlug}`;
+  // Merge Priority: Cloud Data -> Initial Passed Site (if has actual data)
+  const currentSite = cloudSite || (initialSite?.data ? initialSite : null);
+  const currentSiteId = currentSite?.id || `site-${activeSlug}`;
 
   // 2. Record page view on mount (Unconditionally declared hook)
   useEffect(() => {
-    if (activeSlug) {
+    if (activeSlug && currentSite?.data) {
       recordPageView(currentSiteId, activeSlug);
     }
-  }, [activeSlug, currentSiteId]);
+  }, [activeSlug, currentSiteId, currentSite?.data]);
 
   // Check if site data is available
   const hasValidData = Boolean(
     cloudSite?.data || 
     initialSite?.data || 
-    matchingPreset?.data || 
     (typeof localStorage !== 'undefined' && localStorage.getItem(`upb_site_slug_${activeSlug}`))
   );
 
   // Loading state while resolving live cloud data
-  if (isLoading && !hasValidData && activeSlug !== 'pmb-utama') {
+  if (isLoading && !hasValidData) {
     return (
       <div className="min-h-screen bg-[#040914] text-white flex flex-col items-center justify-center space-y-4 p-4 font-sans">
         <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-blue-700 via-blue-600 to-indigo-600 p-0.5 shadow-2xl animate-pulse">
@@ -150,51 +146,35 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
     );
   }
 
-  // If loading finished and NO data found anywhere, render 404
-  if (!isLoading && !hasValidData && activeSlug !== 'pmb-utama') {
+  // If loading finished and NO data found in Cloud/Storage, render 404
+  if (!isLoading && !hasValidData) {
     return <NotFoundPage onGoHome={onGoHome} />;
   }
 
-  const rawData = currentSite.data || matchingPreset?.data || DEFAULT_MICROSITE_DATA;
-
-  const profile = {
-    ...DEFAULT_MICROSITE_DATA.profile,
-    ...(matchingPreset?.data?.profile || {}),
-    ...(rawData.profile || {})
-  };
-
-  const theme = {
-    ...DEFAULT_MICROSITE_DATA.theme,
-    ...(matchingPreset?.data?.theme || {}),
-    ...(rawData.theme || {})
-  };
-
-  const buttonStyle = {
-    ...DEFAULT_MICROSITE_DATA.buttonStyle,
-    ...(matchingPreset?.data?.buttonStyle || {}),
-    ...(rawData.buttonStyle || {})
-  };
-
-  const socials = {
-    ...DEFAULT_MICROSITE_DATA.socials,
-    ...(matchingPreset?.data?.socials || {}),
-    ...(rawData.socials || {})
-  };
-
-  const links = Array.isArray(rawData.links) && rawData.links.length > 0
-    ? rawData.links
-    : (matchingPreset?.data?.links || []);
+  const rawData = currentSite?.data || {};
 
   const mergedData = {
     profile: {
-      ...profile,
-      title: profile.title || currentSite.title || profile.departmentName || profile.universityName
+      universityName: rawData.profile?.universityName || rawData.profile?.title || currentSite?.title || 'Universitas Pelita Bangsa',
+      departmentName: rawData.profile?.departmentName || '',
+      tagline: rawData.profile?.tagline || '',
+      bio: rawData.profile?.bio || '',
+      avatarUrl: rawData.profile?.avatarUrl || DEFAULT_LOGO,
+      headerBannerUrl: rawData.profile?.headerBannerUrl || rawData.profile?.bannerUrl || '/img/upb-bg2.JPG',
+      showBanner: rawData.profile?.showBanner !== false,
+      isVerified: rawData.profile?.isVerified !== false,
+      badgeText: rawData.profile?.badgeText || '',
+      location: rawData.profile?.location || '',
+      email: rawData.profile?.email || '',
+      title: rawData.profile?.title || currentSite?.title || rawData.profile?.universityName || 'Universitas Pelita Bangsa'
     },
-    theme,
-    buttonStyle,
-    socials,
-    links
+    theme: rawData.theme || DEFAULT_MICROSITE_DATA.theme,
+    buttonStyle: rawData.buttonStyle || DEFAULT_MICROSITE_DATA.buttonStyle,
+    socials: rawData.socials || DEFAULT_MICROSITE_DATA.socials,
+    links: Array.isArray(rawData.links) ? rawData.links : []
   };
+
+  const links = mergedData.links;
 
   const handleLinkClick = (linkId) => {
     const targetLink = links.find(l => l.id === linkId);

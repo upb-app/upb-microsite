@@ -510,10 +510,6 @@ function MainAppContent() {
     const publicSlug = getPublicSlug() || 'pmb-utama';
     let publicSite = microsites.find(s => s.slug === publicSlug);
 
-    if (!publicSite) {
-      publicSite = DEFAULT_MICROSITES_LIST.find(s => s.slug === publicSlug);
-    }
-
     if (!publicSite && (publicSlug === 'pmb-utama' || publicSlug === '')) {
       publicSite = currentMicrosite;
     }
