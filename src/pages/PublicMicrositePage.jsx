@@ -301,7 +301,7 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
           <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-white p-1.5 shadow-2xl border-2 border-white/30 overflow-hidden ring-4 ring-black/20 flex items-center justify-center">
             <img 
               src={avatarUrl} 
-              alt={displayDepartmentName} 
+              alt={mainTitle || 'Logo UPB'} 
               className="w-full h-full object-contain rounded-2xl"
               onError={(e) => {
                 e.target.src = DEFAULT_LOGO;
