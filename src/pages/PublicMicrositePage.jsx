@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { 
   QrCode, 
-  ArrowLeft, 
   Copy, 
   Check 
 } from 'lucide-react';
@@ -219,15 +218,7 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
     <div className="min-h-screen flex flex-col justify-between relative bg-slate-950 overflow-x-hidden">
       
       {/* Floating Top Header Navigation */}
-      <header className="relative z-30 max-w-lg mx-auto w-full px-4 pt-4 flex items-center justify-between pointer-events-auto">
-        <button
-          onClick={onGoHome}
-          className="px-3.5 py-1.5 bg-black/50 hover:bg-black/70 backdrop-blur-md border border-white/20 rounded-xl text-xs font-bold text-white flex items-center gap-1.5 transition shadow-sm"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Beranda PMB</span>
-        </button>
-
+      <header className="relative z-30 max-w-lg mx-auto w-full px-4 pt-4 flex items-center justify-end pointer-events-auto">
         <div className="flex items-center gap-1.5">
           <button
             onClick={handleCopyLink}
