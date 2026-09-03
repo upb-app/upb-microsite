@@ -207,9 +207,15 @@ function MainAppContent() {
 
     // Auto-sync all current microsites to Firestore Cloud in background
     if (microsites && microsites.length > 0) {
+      const activeSlugs = microsites.map(s => s.slug);
       microsites.forEach(site => {
         publishMicrositeToCloud(site).catch(() => {});
       });
+
+      // If 'pmb-utama' is not among active admin microsites, delete from Cloud Firestore
+      if (!activeSlugs.includes('pmb-utama')) {
+        deleteMicrositeFromCloud('pmb-utama').catch(() => {});
+      }
     }
 
     return () => {
@@ -287,15 +293,22 @@ function MainAppContent() {
   const updateSiteMeta = (field, value) => {
     setMicrosites(prev => prev.map(site => {
       if (site.id === currentMicrosite.id) {
+        const oldSlug = site.slug;
+        const newSlug = field === 'slug' ? sanitizeSlug(value) : site.slug;
+        if (field === 'slug' && oldSlug && oldSlug !== newSlug) {
+          deleteMicrositeFromCloud(oldSlug, site.id).catch(() => {});
+        }
         const modifiedSite = {
           ...site,
+          slug: newSlug,
           [field]: value,
           updatedAt: new Date().toISOString().split('T')[0],
           data: {
             ...(site.data || DEFAULT_MICROSITE_DATA),
             profile: {
               ...(site.data?.profile || DEFAULT_MICROSITE_DATA.profile),
-              [field === 'title' ? 'title' : field]: value
+              [field === 'title' ? 'title' : field]: value,
+              ...(field === 'slug' ? { slug: newSlug } : {})
             }
           }
         };
@@ -310,16 +323,22 @@ function MainAppContent() {
   const handleUpdateSite = (siteId, updates) => {
     setMicrosites(prev => prev.map(site => {
       if (site.id === siteId) {
+        const oldSlug = site.slug;
+        const newSlug = updates.slug ? sanitizeSlug(updates.slug) : site.slug;
+        if (updates.slug && oldSlug && oldSlug !== newSlug) {
+          deleteMicrositeFromCloud(oldSlug, site.id).catch(() => {});
+        }
         const modifiedSite = {
           ...site,
           ...updates,
+          slug: newSlug,
           updatedAt: new Date().toISOString().split('T')[0],
           data: {
             ...(site.data || DEFAULT_MICROSITE_DATA),
             profile: {
               ...(site.data?.profile || DEFAULT_MICROSITE_DATA.profile),
               title: updates.title || site.title,
-              slug: updates.slug || site.slug
+              slug: newSlug
             }
           }
         };
@@ -334,16 +353,22 @@ function MainAppContent() {
   const updateProfile = (field, value) => {
     setMicrosites(prev => prev.map(site => {
       if (site.id === currentMicrosite.id) {
+        const oldSlug = site.slug;
+        const newSlug = field === 'slug' ? sanitizeSlug(value) : site.slug;
+        if (field === 'slug' && oldSlug && oldSlug !== newSlug) {
+          deleteMicrositeFromCloud(oldSlug, site.id).catch(() => {});
+        }
         const modifiedSite = {
           ...site,
           title: field === 'universityName' ? value : site.title,
-          slug: field === 'slug' ? value : site.slug,
+          slug: newSlug,
           updatedAt: new Date().toISOString().split('T')[0],
           data: {
             ...(site.data || DEFAULT_MICROSITE_DATA),
             profile: {
               ...(site.data?.profile || DEFAULT_MICROSITE_DATA.profile),
-              [field]: value
+              [field]: value,
+              ...(field === 'slug' ? { slug: newSlug } : {})
             }
           }
         };
@@ -507,21 +532,13 @@ function MainAppContent() {
   // Accessible to anyone without login or dashboard chrome
   // ----------------------------------------------------------------------
   if (route === 'public-site') {
-    const publicSlug = getPublicSlug() || 'pmb-utama';
-    let publicSite = microsites.find(s => s.slug === publicSlug);
-
-    if (!publicSite && (publicSlug === 'pmb-utama' || publicSlug === '')) {
-      publicSite = currentMicrosite;
-    }
-
-    if (!publicSite) {
-      publicSite = {
-        id: `site-${publicSlug}`,
-        slug: publicSlug,
-        category: 'Portal Resmi',
-        data: null // Leave null so PublicMicrositePage loads actual live cloud data
-      };
-    }
+    const publicSlug = getPublicSlug();
+    const publicSite = microsites.find(s => s.slug === publicSlug) || {
+      id: `site-${publicSlug}`,
+      slug: publicSlug,
+      category: 'Portal Resmi',
+      data: null // Leave null so PublicMicrositePage loads actual live cloud data, and renders 404 if not found
+    };
 
     return (
       <PublicMicrositePage 

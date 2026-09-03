@@ -23,7 +23,7 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
   const [copied, setCopied] = useState(false);
   const [isQrOpen, setIsQrOpen] = useState(false);
 
-  const activeSlug = sanitizeSlug(initialSite?.slug || 'pmb-utama');
+  const activeSlug = sanitizeSlug(initialSite?.slug || '');
 
   // 1. Real-time Cloud Firestore & Cross-Tab Subscription
   useEffect(() => {
