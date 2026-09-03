@@ -8,7 +8,9 @@ import {
   Flame, 
   Eye, 
   EyeOff,
-  Power
+  Palette,
+  RotateCcw,
+  Sparkles
 } from 'lucide-react';
 import DynamicIcon from '../Common/DynamicIcon';
 import IconPickerModal from './IconPickerModal';
@@ -33,11 +35,113 @@ const BADGE_COLOR_OPTIONS = [
   { label: 'Cyan (Informatika)', class: 'bg-cyan-500 text-slate-950' },
 ];
 
+const BUTTON_COLOR_PRESETS = [
+  { 
+    id: 'default', 
+    label: 'Default Tema', 
+    preview: 'bg-slate-700/60 border-white/20',
+    bg: '', 
+    text: '', 
+    border: '', 
+    gradient: '', 
+    iconColor: '', 
+    iconBg: '' 
+  },
+  { 
+    id: 'amber-gold', 
+    label: 'Emas PMB (Hot)', 
+    preview: 'bg-gradient-to-r from-amber-500 to-amber-600 border-amber-300',
+    bg: '#f59e0b', 
+    text: '#ffffff', 
+    border: '#fbbf24', 
+    gradient: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', 
+    iconColor: '#ffffff', 
+    iconBg: 'rgba(0, 0, 0, 0.25)' 
+  },
+  { 
+    id: 'upb-blue', 
+    label: 'Biru UPB (Resmi)', 
+    preview: 'bg-gradient-to-r from-blue-600 to-indigo-700 border-blue-400',
+    bg: '#2563eb', 
+    text: '#ffffff', 
+    border: '#3b82f6', 
+    gradient: 'linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%)', 
+    iconColor: '#ffffff', 
+    iconBg: 'rgba(255, 255, 255, 0.2)' 
+  },
+  { 
+    id: 'whatsapp-green', 
+    label: 'Hijau WhatsApp', 
+    preview: 'bg-gradient-to-r from-emerald-500 to-teal-600 border-emerald-300',
+    bg: '#10b981', 
+    text: '#ffffff', 
+    border: '#34d399', 
+    gradient: 'linear-gradient(135deg, #059669 0%, #10b981 100%)', 
+    iconColor: '#ffffff', 
+    iconBg: 'rgba(0, 0, 0, 0.25)' 
+  },
+  { 
+    id: 'crimson-red', 
+    label: 'Merah Crimson', 
+    preview: 'bg-gradient-to-r from-rose-600 to-red-700 border-rose-400',
+    bg: '#dc2626', 
+    text: '#ffffff', 
+    border: '#f87171', 
+    gradient: 'linear-gradient(135deg, #991b1b 0%, #dc2626 100%)', 
+    iconColor: '#ffffff', 
+    iconBg: 'rgba(0, 0, 0, 0.25)' 
+  },
+  { 
+    id: 'royal-purple', 
+    label: 'Ungu Akademik', 
+    preview: 'bg-gradient-to-r from-purple-600 to-indigo-800 border-purple-400',
+    bg: '#7c3aed', 
+    text: '#ffffff', 
+    border: '#a78bfa', 
+    gradient: 'linear-gradient(135deg, #5b21b6 0%, #7c3aed 100%)', 
+    iconColor: '#ffffff', 
+    iconBg: 'rgba(255, 255, 255, 0.2)' 
+  },
+  { 
+    id: 'cyan-tech', 
+    label: 'Cyan Digital', 
+    preview: 'bg-gradient-to-r from-cyan-500 to-blue-600 border-cyan-300',
+    bg: '#0891b2', 
+    text: '#ffffff', 
+    border: '#22d3ee', 
+    gradient: 'linear-gradient(135deg, #0e7490 0%, #06b6d4 100%)', 
+    iconColor: '#ffffff', 
+    iconBg: 'rgba(0, 0, 0, 0.25)' 
+  },
+  { 
+    id: 'dark-slate', 
+    label: 'Dark Slate Metalik', 
+    preview: 'bg-gradient-to-r from-slate-900 to-slate-800 border-slate-600',
+    bg: '#1e293b', 
+    text: '#f8fafc', 
+    border: '#475569', 
+    gradient: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)', 
+    iconColor: '#38bdf8', 
+    iconBg: 'rgba(255, 255, 255, 0.1)' 
+  },
+  { 
+    id: 'clean-white', 
+    label: 'Putih Minimalis', 
+    preview: 'bg-white border-slate-300 text-slate-900',
+    bg: '#ffffff', 
+    text: '#0f172a', 
+    border: '#cbd5e1', 
+    gradient: 'linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%)', 
+    iconColor: '#0f172a', 
+    iconBg: 'rgba(15, 23, 42, 0.08)' 
+  },
+];
+
 const QUICK_TEMPLATES = [
-  { title: 'Penerimaan Mahasiswa Baru', subtitle: 'Registrasi online gelombang 1', icon: 'UserPlus', badge: 'PMB 2026', badgeColor: 'bg-amber-500 text-slate-950', animation: 'anim-pulse', highlight: true, isActive: true },
-  { title: 'Sistem Informasi Akademik (SIAKAD)', subtitle: 'Pengisian KRS & KHS online', icon: 'GraduationCap', badge: 'PORTAL', badgeColor: 'bg-blue-600 text-white', animation: 'anim-hover-scale', highlight: false, isActive: true },
-  { title: 'Hubungi Helpdesk WhatsApp UPB', subtitle: 'Layanan informasi & bantuan mahasiswa', icon: 'MessageSquare', badge: 'ONLINE', badgeColor: 'bg-emerald-500 text-slate-950', animation: 'anim-glow', highlight: false, isActive: true },
-  { title: 'Download Buku Panduan Akademik', subtitle: 'Pedoman kurikulum & jadwal kuliah PDF', icon: 'Download', badge: 'PDF', badgeColor: 'bg-purple-600 text-white', animation: 'anim-hover-scale', highlight: false, isActive: true },
+  { title: 'Penerimaan Mahasiswa Baru', subtitle: 'Registrasi online gelombang 1', icon: 'UserPlus', badge: 'PMB 2026', badgeColor: 'bg-amber-500 text-slate-950', animation: 'anim-pulse', highlight: true, isActive: true, colorPreset: 'amber-gold', customGradient: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', customTextColor: '#ffffff', customBorderColor: '#fbbf24' },
+  { title: 'Sistem Informasi Akademik (SIAKAD)', subtitle: 'Pengisian KRS & KHS online', icon: 'GraduationCap', badge: 'PORTAL', badgeColor: 'bg-blue-600 text-white', animation: 'anim-hover-scale', highlight: false, isActive: true, colorPreset: 'upb-blue', customGradient: 'linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%)', customTextColor: '#ffffff', customBorderColor: '#3b82f6' },
+  { title: 'Hubungi Helpdesk WhatsApp UPB', subtitle: 'Layanan informasi & bantuan mahasiswa', icon: 'MessageSquare', badge: 'ONLINE', badgeColor: 'bg-emerald-500 text-slate-950', animation: 'anim-glow', highlight: false, isActive: true, colorPreset: 'whatsapp-green', customGradient: 'linear-gradient(135deg, #059669 0%, #10b981 100%)', customTextColor: '#ffffff', customBorderColor: '#34d399' },
+  { title: 'Download Buku Panduan Akademik', subtitle: 'Pedoman kurikulum & jadwal kuliah PDF', icon: 'Download', badge: 'PDF', badgeColor: 'bg-purple-600 text-white', animation: 'anim-hover-scale', highlight: false, isActive: true, colorPreset: 'royal-purple', customGradient: 'linear-gradient(135deg, #5b21b6 0%, #7c3aed 100%)', customTextColor: '#ffffff', customBorderColor: '#a78bfa' },
 ];
 
 export default function LinksSection({ links = [], setLinks }) {
@@ -58,6 +162,12 @@ export default function LinksSection({ links = [], setLinks }) {
       badgeColor: template.badgeColor,
       highlight: template.highlight,
       isActive: true,
+      colorPreset: template.colorPreset || 'default',
+      customBgColor: template.customBgColor || '',
+      customGradient: template.customGradient || '',
+      customTextColor: template.customTextColor || '',
+      customBorderColor: template.customBorderColor || '',
+      customIconColor: template.customIconColor || '',
       clicks: 0
     } : {
       id: newId,
@@ -70,6 +180,12 @@ export default function LinksSection({ links = [], setLinks }) {
       badgeColor: 'bg-amber-500 text-slate-950',
       highlight: false,
       isActive: true,
+      colorPreset: 'default',
+      customBgColor: '',
+      customGradient: '',
+      customTextColor: '',
+      customBorderColor: '',
+      customIconColor: '',
       clicks: 0
     };
 
@@ -79,6 +195,42 @@ export default function LinksSection({ links = [], setLinks }) {
 
   const handleUpdateLink = (id, field, value) => {
     setLinks(safeLinks.map(l => l.id === id ? { ...l, [field]: value } : l));
+  };
+
+  const handleApplyColorPreset = (id, preset) => {
+    setLinks(safeLinks.map(l => {
+      if (l.id === id) {
+        return {
+          ...l,
+          colorPreset: preset.id,
+          customBgColor: preset.bg,
+          customGradient: preset.gradient,
+          customTextColor: preset.text,
+          customBorderColor: preset.border,
+          customIconColor: preset.iconColor,
+          customIconBg: preset.iconBg
+        };
+      }
+      return l;
+    }));
+  };
+
+  const handleResetLinkColors = (id) => {
+    setLinks(safeLinks.map(l => {
+      if (l.id === id) {
+        return {
+          ...l,
+          colorPreset: 'default',
+          customBgColor: '',
+          customGradient: '',
+          customTextColor: '',
+          customBorderColor: '',
+          customIconColor: '',
+          customIconBg: ''
+        };
+      }
+      return l;
+    }));
   };
 
   const handleToggleLinkActive = (id, e) => {
@@ -178,6 +330,7 @@ export default function LinksSection({ links = [], setLinks }) {
         {safeLinks.map((link, index) => {
           const isExpanded = expandedLinkId === link.id;
           const isLinkActive = link.isActive !== false;
+          const hasCustomColor = !!(link.customBgColor || link.customGradient);
 
           return (
             <div 
@@ -218,6 +371,12 @@ export default function LinksSection({ links = [], setLinks }) {
                       {link.badge && (
                         <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${link.badgeColor || 'bg-amber-500 text-slate-950'}`}>
                           {link.badge}
+                        </span>
+                      )}
+                      {hasCustomColor && (
+                        <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                          <Palette className="w-2.5 h-2.5" />
+                          Kustom Warna
                         </span>
                       )}
                       {link.highlight && isLinkActive && (
@@ -294,7 +453,7 @@ export default function LinksSection({ links = [], setLinks }) {
 
               {/* Accordion Content (Form Edit) */}
               {isExpanded && (
-                <div className="p-4 border-t border-slate-200 dark:border-slate-700/60 space-y-3.5 bg-white dark:bg-slate-900/40 animate-fadeIn">
+                <div className="p-4 border-t border-slate-200 dark:border-slate-700/60 space-y-4 bg-white dark:bg-slate-900/40 animate-fadeIn">
                   
                   {/* Status Toggle Row */}
                   <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800">
@@ -358,6 +517,183 @@ export default function LinksSection({ links = [], setLinks }) {
                       placeholder="https://pmb.pelitabangsa.ac.id"
                       className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-500 font-mono transition"
                     />
+                  </div>
+
+                  {/* ------------------------------------------------------------- */}
+                  {/* PENGATURAN WARNA KHUSUS TOMBOL INI (WARNA PER TOMBOL) */}
+                  {/* ------------------------------------------------------------- */}
+                  <div className="p-3.5 bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                        <Palette className="w-4 h-4 text-amber-500" />
+                        <span>Pilihan Warna Tombol</span>
+                      </label>
+                      {hasCustomColor && (
+                        <button
+                          type="button"
+                          onClick={() => handleResetLinkColors(link.id)}
+                          className="text-[11px] font-semibold text-slate-500 hover:text-amber-500 flex items-center gap-1 transition"
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                          <span>Reset ke Default Tema</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Palet Pilihan Cepat (Quick Presets) */}
+                    <div>
+                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">
+                        Palet Warna Populer:
+                      </span>
+                      <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
+                        {BUTTON_COLOR_PRESETS.map((preset) => {
+                          const isSelected = (link.colorPreset === preset.id) || 
+                            (!link.colorPreset && preset.id === 'default' && !hasCustomColor);
+
+                          return (
+                            <button
+                              key={preset.id}
+                              type="button"
+                              onClick={() => handleApplyColorPreset(link.id, preset)}
+                              className={`p-2 rounded-xl text-left border transition flex flex-col items-center gap-1.5 ${
+                                isSelected
+                                  ? 'bg-amber-500/15 border-amber-500 ring-2 ring-amber-400/40 text-slate-900 dark:text-white font-bold'
+                                  : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-400'
+                              }`}
+                            >
+                              <div className={`w-full h-4 rounded-lg border shadow-xs ${preset.preview}`} />
+                              <span className="text-[10px] truncate w-full text-center leading-tight">
+                                {preset.label}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Kustom Warna Manual (Color Pickers) */}
+                    <div className="pt-2 border-t border-slate-200 dark:border-slate-800/80">
+                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block mb-2">
+                        Kustom Warna Manual (Hex):
+                      </span>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                        {/* Background Color */}
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 block">
+                            Warna Latar (Bg)
+                          </label>
+                          <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl p-1.5">
+                            <input
+                              type="color"
+                              value={link.customBgColor || '#1e293b'}
+                              onChange={(e) => {
+                                handleUpdateLink(link.id, 'customBgColor', e.target.value);
+                                handleUpdateLink(link.id, 'customGradient', '');
+                                handleUpdateLink(link.id, 'colorPreset', 'custom');
+                              }}
+                              className="w-6 h-6 rounded-lg border-0 cursor-pointer p-0 bg-transparent"
+                            />
+                            <input
+                              type="text"
+                              value={link.customBgColor || ''}
+                              onChange={(e) => {
+                                handleUpdateLink(link.id, 'customBgColor', e.target.value);
+                                handleUpdateLink(link.id, 'customGradient', '');
+                                handleUpdateLink(link.id, 'colorPreset', 'custom');
+                              }}
+                              placeholder="#1e293b"
+                              className="w-full text-[11px] font-mono font-semibold bg-transparent focus:outline-none text-slate-800 dark:text-slate-200"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Text Color */}
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 block">
+                            Warna Teks
+                          </label>
+                          <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl p-1.5">
+                            <input
+                              type="color"
+                              value={link.customTextColor || '#ffffff'}
+                              onChange={(e) => {
+                                handleUpdateLink(link.id, 'customTextColor', e.target.value);
+                                handleUpdateLink(link.id, 'colorPreset', 'custom');
+                              }}
+                              className="w-6 h-6 rounded-lg border-0 cursor-pointer p-0 bg-transparent"
+                            />
+                            <input
+                              type="text"
+                              value={link.customTextColor || ''}
+                              onChange={(e) => {
+                                handleUpdateLink(link.id, 'customTextColor', e.target.value);
+                                handleUpdateLink(link.id, 'colorPreset', 'custom');
+                              }}
+                              placeholder="#ffffff"
+                              className="w-full text-[11px] font-mono font-semibold bg-transparent focus:outline-none text-slate-800 dark:text-slate-200"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Border Color */}
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 block">
+                            Warna Border
+                          </label>
+                          <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl p-1.5">
+                            <input
+                              type="color"
+                              value={link.customBorderColor || '#334155'}
+                              onChange={(e) => {
+                                handleUpdateLink(link.id, 'customBorderColor', e.target.value);
+                                handleUpdateLink(link.id, 'colorPreset', 'custom');
+                              }}
+                              className="w-6 h-6 rounded-lg border-0 cursor-pointer p-0 bg-transparent"
+                            />
+                            <input
+                              type="text"
+                              value={link.customBorderColor || ''}
+                              onChange={(e) => {
+                                handleUpdateLink(link.id, 'customBorderColor', e.target.value);
+                                handleUpdateLink(link.id, 'colorPreset', 'custom');
+                              }}
+                              placeholder="#334155"
+                              className="w-full text-[11px] font-mono font-semibold bg-transparent focus:outline-none text-slate-800 dark:text-slate-200"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Icon Color */}
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 block">
+                            Warna Ikon
+                          </label>
+                          <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl p-1.5">
+                            <input
+                              type="color"
+                              value={link.customIconColor || '#f59e0b'}
+                              onChange={(e) => {
+                                handleUpdateLink(link.id, 'customIconColor', e.target.value);
+                                handleUpdateLink(link.id, 'colorPreset', 'custom');
+                              }}
+                              className="w-6 h-6 rounded-lg border-0 cursor-pointer p-0 bg-transparent"
+                            />
+                            <input
+                              type="text"
+                              value={link.customIconColor || ''}
+                              onChange={(e) => {
+                                handleUpdateLink(link.id, 'customIconColor', e.target.value);
+                                handleUpdateLink(link.id, 'colorPreset', 'custom');
+                              }}
+                              placeholder="#f59e0b"
+                              className="w-full text-[11px] font-mono font-semibold bg-transparent focus:outline-none text-slate-800 dark:text-slate-200"
+                            />
+                          </div>
+                        </div>
+
+                      </div>
+                    </div>
                   </div>
 
                   {/* Badge & Animation Settings */}

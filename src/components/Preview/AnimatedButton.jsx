@@ -21,14 +21,22 @@ export default function AnimatedButton({
   const roundedClass = currentStyle.rounded || currentStyle.shape || 'rounded-xl';
   const variant = currentStyle.variant || 'glass';
 
-  // Base styles based on variant
+  // Base styles based on variant or custom colors
   let styleClasses = "";
   let inlineStyles = {};
 
-  if (currentLink.customBgColor) {
+  const hasCustomColor = !!(currentLink.customBgColor || currentLink.customGradient);
+
+  if (currentLink.customGradient) {
+    inlineStyles.background = currentLink.customGradient;
+    inlineStyles.color = currentLink.customTextColor || '#ffffff';
+    inlineStyles.borderColor = currentLink.customBorderColor || 'rgba(255, 255, 255, 0.2)';
+    styleClasses = "shadow-lg shadow-black/20 border hover:brightness-110";
+  } else if (currentLink.customBgColor) {
     inlineStyles.backgroundColor = currentLink.customBgColor;
     inlineStyles.color = currentLink.customTextColor || '#ffffff';
-    inlineStyles.borderColor = currentLink.customBorderColor || 'transparent';
+    inlineStyles.borderColor = currentLink.customBorderColor || 'rgba(255, 255, 255, 0.2)';
+    styleClasses = "shadow-md border hover:brightness-110";
   } else {
     switch (variant) {
       case 'solid':
@@ -57,6 +65,9 @@ export default function AnimatedButton({
     }
   };
 
+  const textColor = currentLink.customTextColor;
+  const iconColor = currentLink.customIconColor || textColor || 'inherit';
+
   return (
     <a
       href={currentLink.url || '#'}
@@ -79,7 +90,14 @@ export default function AnimatedButton({
       {/* Left Icon */}
       <div className="flex items-center gap-3.5 min-w-0 pr-2">
         <div 
-          className="flex-shrink-0 w-11 h-11 rounded-xl flex items-center justify-center bg-slate-950/40 border border-white/10 text-amber-400 group-hover:scale-110 group-hover:bg-amber-500/20 group-hover:border-amber-400/50 group-hover:text-amber-300 transition-all duration-300"
+          className={`flex-shrink-0 w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-300 group-hover:scale-110 shadow-2xs ${
+            hasCustomColor ? 'border' : 'bg-slate-950/40 border border-white/10 text-amber-400 group-hover:bg-amber-500/20 group-hover:border-amber-400/50 group-hover:text-amber-300'
+          }`}
+          style={hasCustomColor ? {
+            backgroundColor: currentLink.customIconBg || 'rgba(0, 0, 0, 0.25)',
+            borderColor: currentLink.customIconBorder || 'rgba(255, 255, 255, 0.2)',
+            color: iconColor
+          } : {}}
         >
           <DynamicIcon name={currentLink.icon || 'Globe'} className="w-5 h-5" />
         </div>
@@ -87,7 +105,10 @@ export default function AnimatedButton({
         {/* Titles & Subtitle */}
         <div className="text-left min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <h4 className="text-sm font-semibold tracking-tight text-white group-hover:text-amber-300 transition line-clamp-1">
+            <h4 
+              className="text-sm font-semibold tracking-tight transition line-clamp-1"
+              style={textColor ? { color: textColor } : {}}
+            >
               {currentLink.title || 'Judul Tautan'}
             </h4>
             {currentLink.badge && (
@@ -99,7 +120,10 @@ export default function AnimatedButton({
             )}
           </div>
           {currentLink.subtitle && (
-            <p className="text-xs text-slate-300/80 group-hover:text-slate-200 transition line-clamp-1 mt-0.5 font-normal">
+            <p 
+              className="text-xs transition line-clamp-1 mt-0.5 font-normal"
+              style={textColor ? { color: textColor, opacity: 0.85 } : {}}
+            >
               {currentLink.subtitle}
             </p>
           )}
@@ -107,7 +131,10 @@ export default function AnimatedButton({
       </div>
 
       {/* Right Arrow / Action indicator */}
-      <div className="flex-shrink-0 text-slate-400 group-hover:text-amber-400 group-hover:translate-x-1 transition duration-200">
+      <div 
+        className="flex-shrink-0 text-slate-400 group-hover:translate-x-1 transition duration-200"
+        style={textColor ? { color: textColor, opacity: 0.7 } : {}}
+      >
         <ChevronRight className="w-5 h-5" />
       </div>
     </a>
