@@ -112,17 +112,25 @@ export default function MicrositeRenderer({
             )}
           </div>
 
-          {/* Titles & Tagline */}
+          {/* Titles & Tagline: Single Clean Heading without duplication */}
           <h1 className="text-lg sm:text-xl font-black text-white tracking-tight flex items-center justify-center gap-1.5 drop-shadow-sm">
-            <span>{profile.universityName || profile.title || 'UNIVERSITAS PELITA BANGSA'}</span>
+            <span>{profile.title || profile.departmentName || profile.universityName || 'UNIVERSITAS PELITA BANGSA'}</span>
           </h1>
 
-          <p className="text-xs sm:text-sm font-semibold text-amber-400 mt-0.5 tracking-wide">
-            {profile.departmentName || profile.tagline || 'Portal Informasi Resmi & Admisi'}
-          </p>
+          {(profile.departmentName && profile.title && profile.departmentName.trim().toLowerCase() !== profile.title.trim().toLowerCase()) && (
+            <p className="text-xs sm:text-sm font-semibold text-amber-400 mt-0.5 tracking-wide">
+              {profile.departmentName}
+            </p>
+          )}
+
+          {profile.tagline && (
+            <p className="text-xs sm:text-sm font-medium text-slate-300 mt-1 tracking-wide">
+              {profile.tagline}
+            </p>
+          )}
 
           {profile.bio && (
-            <p className="text-xs text-slate-300 mt-2 line-clamp-3 leading-relaxed px-2 font-normal">
+            <p className="text-xs text-slate-300 mt-1.5 line-clamp-3 leading-relaxed px-2 font-normal">
               {profile.bio}
             </p>
           )}

@@ -113,11 +113,20 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
     ? rawData.links
     : (Array.isArray(matchingPreset.data?.links) && matchingPreset.data.links.length > 0 ? matchingPreset.data.links : DEFAULT_MICROSITE_DATA.links);
 
-  // Hierarchy Penamaan Resmi (Judul dan Nama Departemen, BUKAN Slug)
-  const displayUniversityName = profile.universityName || 'UNIVERSITAS PELITA BANGSA';
-  const displayDepartmentName = profile.departmentName || currentSite.title || matchingPreset.title || 'Portal Informasi Resmi';
-  const displayTagline = profile.tagline || matchingPreset.data?.profile?.tagline || DEFAULT_MICROSITE_DATA.profile.tagline;
-  const displayBio = profile.bio || matchingPreset.data?.profile?.bio || DEFAULT_MICROSITE_DATA.profile.bio;
+  // Single Clean Title Resolution (prevents repeating identical headings)
+  const mainTitle = profile.title || currentSite.title || profile.departmentName || profile.universityName || 'UNIVERSITAS PELITA BANGSA';
+  
+  const secondaryTitle = (
+    profile.departmentName && 
+    profile.departmentName.trim().toLowerCase() !== mainTitle.trim().toLowerCase()
+  ) ? profile.departmentName : (
+    (profile.universityName && 
+     profile.universityName.trim().toLowerCase() !== mainTitle.trim().toLowerCase() && 
+     profile.universityName !== 'UNIVERSITAS PELITA BANGSA') ? profile.universityName : null
+  );
+
+  const displayTagline = profile.tagline || '';
+  const displayBio = profile.bio || '';
 
   const avatarUrl = normalizeImageUrl(profile.avatarUrl, DEFAULT_LOGO);
   const bannerUrl = (profile.showBanner !== false && (profile.headerBannerUrl || profile.bannerUrl))
@@ -306,18 +315,20 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
           )}
         </div>
 
-        {/* Profile Information: Hierarchy Penamaan Resmi (Universitas & Departemen) */}
+        {/* Profile Information: Single Clean Title without duplication */}
         <div className="text-center space-y-1.5 mb-6 w-full">
-          <h1 className="text-lg sm:text-xl font-black tracking-tight text-white drop-shadow-md uppercase">
-            {displayUniversityName}
+          <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white drop-shadow-md">
+            {mainTitle}
           </h1>
 
-          <p className="text-base sm:text-lg font-black text-amber-400 drop-shadow-sm">
-            {displayDepartmentName}
-          </p>
+          {secondaryTitle && (
+            <p className="text-xs sm:text-sm font-semibold text-amber-400 drop-shadow-sm">
+              {secondaryTitle}
+            </p>
+          )}
 
           {displayTagline && (
-            <p className="text-xs sm:text-sm font-semibold text-slate-300 drop-shadow-sm">
+            <p className="text-xs sm:text-sm font-medium text-slate-300 drop-shadow-sm">
               {displayTagline}
             </p>
           )}

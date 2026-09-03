@@ -287,7 +287,7 @@ function MainAppContent() {
             ...(site.data || DEFAULT_MICROSITE_DATA),
             profile: {
               ...(site.data?.profile || DEFAULT_MICROSITE_DATA.profile),
-              [field === 'title' ? 'universityName' : field]: value
+              [field === 'title' ? 'title' : field]: value
             }
           }
         };
@@ -310,7 +310,7 @@ function MainAppContent() {
             ...(site.data || DEFAULT_MICROSITE_DATA),
             profile: {
               ...(site.data?.profile || DEFAULT_MICROSITE_DATA.profile),
-              universityName: updates.title || site.title,
+              title: updates.title || site.title,
               slug: updates.slug || site.slug
             }
           }
