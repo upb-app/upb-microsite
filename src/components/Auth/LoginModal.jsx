@@ -6,12 +6,13 @@ import {
   AlertCircle, 
   Eye, 
   EyeOff, 
-  KeyRound 
+  KeyRound,
+  ShieldCheck
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import confetti from 'canvas-confetti';
 
-export default function LoginModal({ isOpen, onClose, onSuccessLogin }) {
+export default function LoginModal({ isOpen, onClose, onSuccessLogin, notice }) {
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -53,12 +54,14 @@ export default function LoginModal({ isOpen, onClose, onSuccessLogin }) {
       <div className="relative w-full max-w-md bg-gradient-to-b from-[#0b1d3a] via-[#071326] to-[#040b17] border border-white/20 rounded-3xl shadow-2xl overflow-hidden p-6 sm:p-8 space-y-5">
         
         {/* Close Button */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-xl transition"
-        >
-          <X className="w-5 h-5" />
-        </button>
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-xl transition"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        )}
 
         {/* Header Branding */}
         <div className="text-center space-y-2">
@@ -70,8 +73,20 @@ export default function LoginModal({ isOpen, onClose, onSuccessLogin }) {
 
           <div>
             <h3 className="text-lg font-extrabold text-white">Login Portal Pengelola</h3>
+            <div className="inline-flex items-center gap-1 text-[11px] text-blue-300 font-semibold mt-1 px-2.5 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20">
+              <ShieldCheck className="w-3 h-3 text-blue-400" />
+              <span>Akses Terproteksi UPB</span>
+            </div>
           </div>
         </div>
+
+        {/* Notice from Route Guard if redirected */}
+        {notice && (
+          <div className="p-3 bg-amber-500/15 border border-amber-500/30 rounded-xl flex items-start gap-2 text-xs text-amber-200">
+            <Lock className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-400" />
+            <span className="leading-relaxed">{notice}</span>
+          </div>
+        )}
 
         {/* Error Alert (Red for Error) */}
         {errorMessage && (

@@ -11,7 +11,8 @@ import {
 import { auth, isFirebaseConfigured } from '../services/firebase';
 import { 
   signInWithEmailAndPassword, 
-  signOut as firebaseSignOut 
+  signOut as firebaseSignOut,
+  onAuthStateChanged 
 } from 'firebase/auth';
 
 const USERS_STORAGE_KEY = 'upb_auth_users_db_v2';
@@ -73,6 +74,36 @@ export function AuthProvider({ children }) {
     } catch (e) {}
     return DEFAULT_USERS;
   });
+
+  const [authLoading, setAuthLoading] = useState(true);
+
+  // Sync Firebase Auth session jika Firebase aktif
+  useEffect(() => {
+    let unsubscribe = () => {};
+    if (isFirebaseConfigured() && auth) {
+      try {
+        unsubscribe = onAuthStateChanged(auth, (fbUser) => {
+          if (fbUser) {
+            const userProfile = {
+              id: fbUser.uid,
+              name: fbUser.displayName || 'Administrator UPB',
+              email: fbUser.email,
+              role: 'superadmin',
+              status: 'active'
+            };
+            setCurrentUser(userProfile);
+          }
+          setAuthLoading(false);
+        });
+      } catch (e) {
+        setAuthLoading(false);
+      }
+    } else {
+      setAuthLoading(false);
+    }
+
+    return () => unsubscribe();
+  }, []);
 
   // Save users DB
   useEffect(() => {
@@ -322,6 +353,7 @@ export function AuthProvider({ children }) {
 
   const value = {
     currentUser,
+    authLoading,
     isSuperadmin,
     users,
     login,

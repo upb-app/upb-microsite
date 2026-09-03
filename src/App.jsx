@@ -21,7 +21,7 @@ import MicrositeManagerModal from './components/Admin/MicrositeManagerModal';
 import { DEFAULT_MICROSITE_DATA, DEFAULT_MICROSITES_LIST } from './data/defaultData';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
-import { Layers, ExternalLink, Send, Radio, Lock } from 'lucide-react';
+import { Layers, ExternalLink, Send, Radio, Lock, ShieldCheck } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { recordLinkClick } from './services/analyticsService';
 
@@ -45,7 +45,7 @@ const RESERVED_PATHS = [
 ];
 
 function MainAppContent() {
-  const { currentUser, isSuperadmin } = useAuth();
+  const { currentUser, authLoading, isSuperadmin } = useAuth();
   const { isDark } = useTheme();
 
   // Multi-microsites state
@@ -189,6 +189,33 @@ function MainAppContent() {
 
   // Route State: 'home' | 'dashboard' | 'login' | 'public-site'
   const [route, setRoute] = useState(determineRoute);
+  const [redirectNotice, setRedirectNotice] = useState('');
+
+  // Strict Authentication Route Guard for /s/dasbor
+  useEffect(() => {
+    if (authLoading) return;
+
+    // If attempting to access dashboard without valid session, immediately bounce to /s/asup
+    if (route === 'dashboard' && !currentUser) {
+      if (window.history.replaceState) {
+        window.history.replaceState(null, '', '/s/asup');
+      } else {
+        window.location.hash = '/s/asup';
+      }
+      setRedirectNotice('Akses Terproteksi: Silakan login terlebih dahulu untuk mengakses Dasbor Studio.');
+      setRoute('login');
+    }
+
+    // If accessing login route while already authenticated, redirect straight to /s/dasbor
+    if (route === 'login' && currentUser) {
+      if (window.history.replaceState) {
+        window.history.replaceState(null, '', '/s/dasbor');
+      } else {
+        window.location.hash = '/s/dasbor';
+      }
+      setRoute('dashboard');
+    }
+  }, [route, currentUser, authLoading]);
 
   // Listen for browser navigation changes
   useEffect(() => {
@@ -206,6 +233,17 @@ function MainAppContent() {
 
   const navigateTo = (newRoute, slug) => {
     if (newRoute === 'dashboard') {
+      if (!currentUser) {
+        // If not logged in, reroute to /s/asup
+        if (window.history.pushState) {
+          window.history.pushState(null, '', '/s/asup');
+        } else {
+          window.location.hash = '/s/asup';
+        }
+        setRedirectNotice('Akses Terproteksi: Silakan login terlebih dahulu untuk mengakses Dasbor Studio.');
+        setRoute('login');
+        return;
+      }
       if (window.history.pushState) {
         window.history.pushState(null, '', '/s/dasbor');
       } else {
@@ -392,7 +430,30 @@ function MainAppContent() {
   };
 
   // ----------------------------------------------------------------------
-  // SCENARIO 0: STANDALONE CLEAN PUBLIC MICROSITE VIEW (`/[slug]`)
+  // SCENARIO 0: INITIAL AUTH STATE LOADING
+  // ----------------------------------------------------------------------
+  if (authLoading) {
+    return (
+      <div className={`min-h-screen flex flex-col items-center justify-center p-4 font-sans ${
+        isDark ? 'bg-[#040914] text-white' : 'bg-[#f4f7fb] text-slate-900'
+      }`}>
+        <div className="w-16 h-16 rounded-2xl p-1 bg-gradient-to-tr from-blue-700 to-indigo-600 shadow-xl mb-4 flex items-center justify-center animate-pulse">
+          <img 
+            src="/img/logo-universitas-pelita-bangsa.png" 
+            alt="UPB Logo" 
+            className="w-full h-full object-contain rounded-xl" 
+          />
+        </div>
+        <div className="flex items-center gap-2 text-xs font-semibold text-blue-600 dark:text-blue-400">
+          <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
+          <span>Memverifikasi Otorisasi Sesi...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // ----------------------------------------------------------------------
+  // SCENARIO 1: STANDALONE CLEAN PUBLIC MICROSITE VIEW (`/[slug]`)
   // Accessible to anyone without login or dashboard chrome
   // ----------------------------------------------------------------------
   if (route === 'public-site') {
@@ -408,7 +469,7 @@ function MainAppContent() {
   }
 
   // ----------------------------------------------------------------------
-  // SCENARIO 1: ACCESSED VIA '/' (HOME PMB PORTAL)
+  // SCENARIO 2: ACCESSED VIA '/' (HOME PMB PORTAL)
   // ----------------------------------------------------------------------
   if (route === 'home') {
     return (
@@ -427,21 +488,16 @@ function MainAppContent() {
           isOpen={isQrModalOpen}
           onClose={() => setIsQrModalOpen(false)}
           data={previewData}
+          slug={currentMicrosite.slug}
         />
       </div>
     );
   }
 
   // ----------------------------------------------------------------------
-  // SCENARIO 2: ACCESSED VIA '/s/asup' (LOGIN DEDICATED ROUTE)
+  // SCENARIO 3: ACCESSED VIA '/s/asup' OR UNPROTECTED REDIRECT (LOGIN PORTAL)
   // ----------------------------------------------------------------------
-  if (route === 'login') {
-    // If user is already authenticated, redirect straight to dashboard
-    if (currentUser) {
-      navigateTo('dashboard');
-      return null;
-    }
-
+  if (route === 'login' || !currentUser) {
     return (
       <div className={`min-h-screen flex items-center justify-center p-4 font-sans relative transition-colors ${
         isDark ? 'bg-[#040914] text-slate-100' : 'bg-[#f4f7fb] text-slate-900'
@@ -461,8 +517,10 @@ function MainAppContent() {
 
         <LoginModal
           isOpen={true}
+          notice={redirectNotice}
           onClose={() => navigateTo('home')}
           onSuccessLogin={() => {
+            setRedirectNotice('');
             navigateTo('dashboard');
           }}
         />
@@ -471,39 +529,7 @@ function MainAppContent() {
   }
 
   // ----------------------------------------------------------------------
-  // SCENARIO 3: ACCESSED VIA '/s/dasbor' BUT NOT LOGGED IN
-  // ----------------------------------------------------------------------
-  if (!currentUser) {
-    return (
-      <div className={`min-h-screen flex items-center justify-center p-4 font-sans relative transition-colors ${
-        isDark ? 'bg-[#040914] text-slate-100' : 'bg-[#f4f7fb] text-slate-900'
-      }`}>
-        <div className="absolute top-4 left-4 z-10">
-          <button
-            onClick={() => navigateTo('home')}
-            className={`px-3.5 py-1.5 text-xs font-bold rounded-xl border transition ${
-              isDark 
-                ? 'bg-white/10 hover:bg-white/20 text-white border-white/15' 
-                : 'bg-white hover:bg-slate-100 text-slate-800 border-slate-300 shadow-sm'
-            }`}
-          >
-            ← Kembali ke Beranda
-          </button>
-        </div>
-
-        <LoginModal
-          isOpen={true}
-          onClose={() => navigateTo('home')}
-          onSuccessLogin={() => {
-            navigateTo('dashboard');
-          }}
-        />
-      </div>
-    );
-  }
-
-  // ----------------------------------------------------------------------
-  // SCENARIO 4: ACCESSED VIA '/s/dasbor' AND AUTHENTICATED
+  // SCENARIO 4: ACCESSED VIA '/s/dasbor' AND FULLY AUTHENTICATED
   // Clean, Uncluttered Studio with Light Default & Theme Toggle
   // ----------------------------------------------------------------------
   return (
