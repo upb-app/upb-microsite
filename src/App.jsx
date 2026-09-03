@@ -109,43 +109,28 @@ function MainAppContent() {
     } catch (e) {}
   }, [microsites, activeSiteId]);
 
-  // URL Path router helpers
+  // URL Path router helpers - Strictly /s/asup for Login & /s/dasbor for Dashboard
   const isLoginRoute = () => {
     const path = window.location.pathname.toLowerCase();
     const hash = window.location.hash.toLowerCase();
-    const search = window.location.search.toLowerCase();
     
     return (
       path === '/s/asup' ||
-      path.startsWith('/s/asup') ||
-      path === '/asup' ||
-      path.startsWith('/asup') ||
-      path === '/login' ||
-      path.startsWith('/login') ||
-      hash.includes('/s/asup') ||
-      hash.includes('asup') ||
-      hash.includes('login') ||
-      search.includes('asup') ||
-      search.includes('login')
+      path === '/s/asup/' ||
+      hash === '#/s/asup' ||
+      hash === '#/s/asup/'
     );
   };
 
   const isDashboardRoute = () => {
     const path = window.location.pathname.toLowerCase();
     const hash = window.location.hash.toLowerCase();
-    const search = window.location.search.toLowerCase();
     
     return (
       path === '/s/dasbor' ||
-      path.startsWith('/s/dasbor') ||
-      path === '/dasbor' ||
-      path.startsWith('/dasbor') ||
-      path === '/dashboard' ||
-      path.startsWith('/dashboard') ||
-      hash.includes('/s/dasbor') ||
-      hash.includes('dasbor') ||
-      hash.includes('dashboard') ||
-      search.includes('dasbor')
+      path === '/s/dasbor/' ||
+      hash === '#/s/dasbor' ||
+      hash === '#/s/dasbor/'
     );
   };
 
