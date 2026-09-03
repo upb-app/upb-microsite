@@ -176,6 +176,33 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
 
   const links = mergedData.links;
 
+  // Dynamic Browser Title & Meta Tags for Client-Side View
+  useEffect(() => {
+    if (mergedData?.profile) {
+      const p = mergedData.profile;
+      const displayTitle = p.departmentName 
+        ? `${p.departmentName} - ${p.universityName}`
+        : `${p.universityName} • ${p.tagline || 'Portal PMB Resmi'}`;
+      document.title = displayTitle;
+
+      const desc = p.tagline ? `${p.tagline} • ${p.bio || ''}` : (p.bio || 'Portal Resmi Universitas Pelita Bangsa');
+      
+      const setMeta = (selector, attr, val) => {
+        let tag = document.querySelector(selector);
+        if (tag) tag.setAttribute(attr, val);
+      };
+
+      setMeta('meta[name="description"]', 'content', desc);
+      setMeta('meta[property="og:title"]', 'content', displayTitle);
+      setMeta('meta[property="og:description"]', 'content', desc);
+      if (p.headerBannerUrl || p.avatarUrl) {
+        const img = p.headerBannerUrl || p.avatarUrl;
+        const fullImg = img.startsWith('http') ? img : `https://pmbupb.site${img.startsWith('/') ? '' : '/'}${img}`;
+        setMeta('meta[property="og:image"]', 'content', fullImg);
+      }
+    }
+  }, [mergedData.profile]);
+
   const handleLinkClick = (linkId) => {
     const targetLink = links.find(l => l.id === linkId);
     if (targetLink) {
