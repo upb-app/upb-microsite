@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { normalizeImageUrl, DEFAULT_LOGO, DEFAULT_BANNER } from '../../utils/imageHelper';
 import confetti from 'canvas-confetti';
-import { sanitizeSlug, validateSlug } from '../../services/micrositeService';
+import { sanitizeSlug, validateSlug, getShareableMicrositeUrl } from '../../services/micrositeService';
 
 const BANNER_PRESETS = [
   { label: 'Gedung Rektorat & Kampus UPB', url: '/img/upb-bg2.JPG' },
@@ -28,14 +28,6 @@ const BANNER_PRESETS = [
   { label: 'Laboratorium & Teknologi', url: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=1200&auto=format&fit=crop&q=80' },
   { label: 'Perpustakaan Digital', url: 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?w=1200&auto=format&fit=crop&q=80' },
   { label: 'Mahasiswa & Festival', url: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=1200&auto=format&fit=crop&q=80' },
-];
-
-const AVATAR_PRESETS = [
-  { label: 'Logo Resmi UPB', url: '/img/logo-universitas-pelita-bangsa.png' },
-  { label: 'Mahasiswa', url: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=300&auto=format&fit=crop&q=80' },
-  { label: 'Dosen / Peneliti', url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80' },
-  { label: 'Fakultas Teknik', url: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?w=300&auto=format&fit=crop&q=80' },
-  { label: 'Organisasi Mahasiswa', url: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=300&auto=format&fit=crop&q=80' },
 ];
 
 export default function ProfileSection({ 
@@ -59,7 +51,9 @@ export default function ProfileSection({
   const publicUrl = `${origin}/${currentSlug}`;
 
   const handleCopyLink = () => {
-    navigator.clipboard.writeText(publicUrl);
+    const fullSite = { ...site, data: { ...(site?.data || {}), profile } };
+    const shareUrl = getShareableMicrositeUrl(fullSite, origin);
+    navigator.clipboard.writeText(shareUrl);
     setCopied(true);
     confetti({ particleCount: 50, spread: 60 });
     setTimeout(() => setCopied(false), 2000);

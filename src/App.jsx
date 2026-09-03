@@ -29,7 +29,7 @@ import {
   publishMicrositeToCloud, 
   deleteMicrositeFromCloud, 
   sanitizeSlug, 
-  fetchPublishedMicrosite 
+  getShareableMicrositeUrl 
 } from './services/micrositeService';
 
 const MICROSITES_STORAGE_KEY = 'upb_multi_microsites_list_v2';
@@ -397,8 +397,8 @@ function MainAppContent() {
 
   const handleTopBarCopyLink = () => {
     const origin = window.location.origin.includes('localhost') ? window.location.origin : 'https://pmbupb.site';
-    const cleanUrl = `${origin}/${currentMicrosite.slug}`;
-    navigator.clipboard.writeText(cleanUrl);
+    const shareUrl = getShareableMicrositeUrl(currentMicrosite, origin);
+    navigator.clipboard.writeText(shareUrl);
     setTopBarCopied(true);
     confetti({ particleCount: 50, spread: 60 });
     setTimeout(() => setTopBarCopied(false), 2000);
