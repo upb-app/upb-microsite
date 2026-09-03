@@ -22,9 +22,15 @@ import MicrositeManagerModal from './components/Admin/MicrositeManagerModal';
 import { DEFAULT_MICROSITE_DATA, DEFAULT_MICROSITES_LIST } from './data/defaultData';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
-import { Layers, ExternalLink, Send } from 'lucide-react';
+import { Layers, ExternalLink, Send, Copy, Check, Radio } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { recordLinkClick } from './services/analyticsService';
+import { 
+  publishMicrositeToCloud, 
+  deleteMicrositeFromCloud, 
+  sanitizeSlug, 
+  fetchPublishedMicrosite 
+} from './services/micrositeService';
 
 const MICROSITES_STORAGE_KEY = 'upb_multi_microsites_list_v2';
 const ACTIVE_SITE_KEY = 'upb_active_microsite_id_v2';
@@ -50,6 +56,7 @@ const RESERVED_PATHS = [
 function MainAppContent() {
   const { currentUser } = useAuth();
   const { isDark } = useTheme();
+  const [topBarCopied, setTopBarCopied] = useState(false);
 
   // Multi-microsites state
   const [microsites, setMicrosites] = useState(() => {
@@ -175,7 +182,7 @@ function MainAppContent() {
     const slug = getPublicSlug();
     if (slug) {
       const exists = microsites.some(s => s.slug === slug) || slug === 'pmb-utama';
-      return exists ? 'public-site' : 'not-found';
+      return exists ? 'public-site' : 'public-site'; // Always resolve to public site handler which checks Cloud Firestore
     }
 
     const path = window.location.pathname;
@@ -255,11 +262,46 @@ function MainAppContent() {
     setMicrosites(prev => prev.map(site => {
       if (site.id === currentMicrosite.id) {
         const updatedData = typeof updater === 'function' ? updater(site.data) : updater;
-        return {
+        const modifiedSite = {
           ...site,
           updatedAt: new Date().toISOString().split('T')[0],
           data: updatedData
         };
+        // Auto-sync to Firebase Cloud in background
+        publishMicrositeToCloud(modifiedSite).catch(() => {});
+        return modifiedSite;
+      }
+      return site;
+    }));
+  };
+
+  // Update site title or slug metadata directly
+  const updateSiteMeta = (field, value) => {
+    setMicrosites(prev => prev.map(site => {
+      if (site.id === currentMicrosite.id) {
+        const modifiedSite = {
+          ...site,
+          [field]: value,
+          updatedAt: new Date().toISOString().split('T')[0]
+        };
+        // Auto-sync to Firebase Cloud in background
+        publishMicrositeToCloud(modifiedSite).catch(() => {});
+        return modifiedSite;
+      }
+      return site;
+    }));
+  };
+
+  const handleUpdateSite = (siteId, updates) => {
+    setMicrosites(prev => prev.map(site => {
+      if (site.id === siteId) {
+        const modifiedSite = {
+          ...site,
+          ...updates,
+          updatedAt: new Date().toISOString().split('T')[0]
+        };
+        publishMicrositeToCloud(modifiedSite).catch(() => {});
+        return modifiedSite;
       }
       return site;
     }));
@@ -322,6 +364,15 @@ function MainAppContent() {
     }
   };
 
+  const handleTopBarCopyLink = () => {
+    const origin = window.location.origin.includes('localhost') ? window.location.origin : 'https://pmbupb.site';
+    const cleanUrl = `${origin}/${currentMicrosite.slug}`;
+    navigator.clipboard.writeText(cleanUrl);
+    setTopBarCopied(true);
+    confetti({ particleCount: 50, spread: 60 });
+    setTimeout(() => setTopBarCopied(false), 2000);
+  };
+
   // Multi-microsite actions
   const handleSelectSite = (siteId) => {
     setActiveSiteId(siteId);
@@ -332,11 +383,12 @@ function MainAppContent() {
   };
 
   const handleCreateSite = ({ title, slug, category, tagline }) => {
-    const newId = `site-${slug}-${Date.now()}`;
+    const cleanSlug = sanitizeSlug(slug);
+    const newId = `site-${cleanSlug}-${Date.now()}`;
     const newSite = {
       id: newId,
       title,
-      slug,
+      slug: cleanSlug,
       category: category || 'Pusat Admisi',
       status: 'Active',
       views: 0,
@@ -346,8 +398,10 @@ function MainAppContent() {
         ...DEFAULT_MICROSITE_DATA,
         profile: {
           ...DEFAULT_MICROSITE_DATA.profile,
+          universityName: title,
           departmentName: title,
           tagline: tagline || DEFAULT_MICROSITE_DATA.profile.tagline,
+          slug: cleanSlug
         }
       }
     };
@@ -355,6 +409,7 @@ function MainAppContent() {
     setMicrosites([...microsites, newSite]);
     setActiveSiteId(newId);
     setPreviewData(newSite.data);
+    publishMicrositeToCloud(newSite).catch(() => {});
     confetti({ particleCount: 70, spread: 60 });
   };
 
@@ -362,12 +417,13 @@ function MainAppContent() {
     const source = microsites.find(s => s.id === siteId);
     if (!source) return;
 
-    const newId = `site-${source.slug}-copy-${Date.now()}`;
+    const newSlug = sanitizeSlug(`${source.slug}-salinan`);
+    const newId = `site-${newSlug}-${Date.now()}`;
     const newSite = {
       ...source,
       id: newId,
       title: `${source.title} (Salinan)`,
-      slug: `${source.slug}-salinan`,
+      slug: newSlug,
       views: 0,
       createdAt: new Date().toISOString().split('T')[0],
       updatedAt: new Date().toISOString().split('T')[0],
@@ -377,6 +433,7 @@ function MainAppContent() {
     setMicrosites([...microsites, newSite]);
     setActiveSiteId(newId);
     setPreviewData(newSite.data);
+    publishMicrositeToCloud(newSite).catch(() => {});
     confetti({ particleCount: 50, spread: 50 });
   };
 
@@ -384,6 +441,10 @@ function MainAppContent() {
     if (microsites.length <= 1) {
       alert('Tidak dapat menghapus microsite utama terakhir.');
       return;
+    }
+    const target = microsites.find(s => s.id === siteId);
+    if (target) {
+      deleteMicrositeFromCloud(target.slug, target.id).catch(() => {});
     }
     const remaining = microsites.filter(s => s.id !== siteId);
     setMicrosites(remaining);
@@ -408,13 +469,7 @@ function MainAppContent() {
   // ----------------------------------------------------------------------
   if (route === 'public-site') {
     const publicSlug = getPublicSlug();
-    const publicSite = microsites.find(s => s.slug === publicSlug) || (publicSlug === 'pmb-utama' ? currentMicrosite : null);
-
-    if (!publicSite) {
-      return (
-        <NotFoundPage onGoHome={() => navigateTo('home')} />
-      );
-    }
+    const publicSite = microsites.find(s => s.slug === publicSlug) || (publicSlug === 'pmb-utama' ? currentMicrosite : null) || { slug: publicSlug };
 
     return (
       <PublicMicrositePage 
@@ -531,21 +586,34 @@ function MainAppContent() {
       />
 
       {/* Secondary Bar: Active Microsite Status & Quick Actions */}
-      <div className={`border-b px-4 sm:px-6 py-2 transition-colors ${
+      <div className={`border-b px-4 sm:px-6 py-2.5 transition-colors ${
         isDark ? 'bg-[#071326] border-white/10' : 'bg-white border-slate-200 shadow-xs'
       }`}>
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs">
           
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-blue-600 text-white">
+            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-blue-600 text-white shadow-2xs">
               AKTIF
             </span>
             <span className="font-bold text-xs sm:text-sm">
               {currentMicrosite.title}
             </span>
-            <span className="text-slate-400 font-mono text-[11px] hidden md:inline">
-              (pmbupb.site/{currentMicrosite.slug})
-            </span>
+            
+            {/* Direct Copyable Link Badge */}
+            <div className="flex items-center gap-1.5 bg-blue-500/10 dark:bg-blue-900/30 px-2 py-0.5 rounded-lg border border-blue-500/20">
+              <span className="text-blue-600 dark:text-blue-400 font-mono text-[11px] font-bold">
+                pmbupb.site/{currentMicrosite.slug}
+              </span>
+              <button
+                type="button"
+                onClick={handleTopBarCopyLink}
+                className="p-1 text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400 transition"
+                title="Salin Link Publik"
+              >
+                {topBarCopied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+              </button>
+            </div>
+
             <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
               isDark ? 'bg-white/10 text-amber-400 border-white/10' : 'bg-blue-50 text-blue-800 border-blue-200'
             }`}>
@@ -557,7 +625,7 @@ function MainAppContent() {
             {/* Publish & Share Quick Button */}
             <button
               onClick={() => setIsPublishModalOpen(true)}
-              className="px-3 py-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-lg flex items-center gap-1.5 transition text-xs shadow-sm"
+              className="px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl flex items-center gap-1.5 transition text-xs shadow-sm transform active:scale-95"
             >
               <Send className="w-3.5 h-3.5" />
               <span>Publikasikan & Link</span>
@@ -566,7 +634,7 @@ function MainAppContent() {
             {/* Switch / Add Microsite Button */}
             <button
               onClick={() => setIsMicrositeManagerOpen(true)}
-              className={`px-3 py-1 font-bold rounded-lg border flex items-center gap-1.5 transition text-xs ${
+              className={`px-3 py-1.5 font-bold rounded-xl border flex items-center gap-1.5 transition text-xs ${
                 isDark 
                   ? 'bg-[#0c2242] hover:bg-[#0f2c59] text-amber-400 border-amber-400/30' 
                   : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300'
@@ -582,7 +650,7 @@ function MainAppContent() {
                 setPreviewData(data);
                 setIsPublicViewOpen(true);
               }}
-              className="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg flex items-center gap-1.5 transition text-xs shadow-sm"
+              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl flex items-center gap-1.5 transition text-xs shadow-sm"
             >
               <ExternalLink className="w-3.5 h-3.5" />
               <span>Preview</span>
@@ -606,7 +674,13 @@ function MainAppContent() {
           {/* Tab Panes */}
           <div className="flex-1 overflow-y-auto p-1">
             {activeTab === 'profile' && (
-              <ProfileSection profile={data.profile} updateProfile={updateProfile} />
+              <ProfileSection 
+                profile={data.profile} 
+                updateProfile={updateProfile}
+                site={currentMicrosite}
+                updateSiteMeta={updateSiteMeta}
+                microsites={microsites}
+              />
             )}
 
             {activeTab === 'links' && (
@@ -670,6 +744,7 @@ function MainAppContent() {
         onCreateSite={handleCreateSite}
         onDuplicateSite={handleDuplicateSite}
         onDeleteSite={handleDeleteSite}
+        onUpdateSite={handleUpdateSite}
       />
 
       {/* Publish & Share Modal */}

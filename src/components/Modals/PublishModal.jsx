@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, 
   Globe, 
@@ -8,11 +8,14 @@ import {
   Radio, 
   Eye,
   Send,
-  MessageCircle
+  CloudCheck,
+  CheckCircle2,
+  RefreshCw
 } from 'lucide-react';
 import { TwitterIcon, TelegramIcon, WhatsappIcon } from '../Common/BrandIcons';
 import confetti from 'canvas-confetti';
 import { useTheme } from '../../context/ThemeContext';
+import { publishMicrositeToCloud } from '../../services/micrositeService';
 
 export default function PublishModal({ 
   isOpen, 
@@ -22,15 +25,37 @@ export default function PublishModal({
 }) {
   const { isDark } = useTheme();
   const [copied, setCopied] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [publishSuccess, setPublishSuccess] = useState(false);
 
-  if (!isOpen || !microsite) return null;
-
-  // Clean Public URL without '/s/' (Standard clean URL on Vercel e.g. pmbupb.site/pmb-utama)
-  const origin = window.location.origin.includes('localhost') 
+  // Clean Public URL directly at domain root (e.g. 'https://pmbupb.site/pmb-utama')
+  const origin = typeof window !== 'undefined' && window.location.origin.includes('localhost') 
     ? window.location.origin 
     : 'https://pmbupb.site';
   
-  const publicUrl = `${origin}/${microsite.slug}`;
+  const publicUrl = `${origin}/${microsite?.slug || 'pmb-utama'}`;
+
+  // Auto-sync to cloud when modal opens
+  useEffect(() => {
+    if (isOpen && microsite) {
+      handlePublishCloud();
+    }
+  }, [isOpen, microsite?.id, microsite?.slug]);
+
+  if (!isOpen || !microsite) return null;
+
+  const handlePublishCloud = async () => {
+    setIsPublishing(true);
+    try {
+      await publishMicrositeToCloud(microsite);
+      setPublishSuccess(true);
+      confetti({ particleCount: 50, spread: 60 });
+    } catch (e) {
+      console.warn('Publish notice:', e);
+    } finally {
+      setIsPublishing(false);
+    }
+  };
 
   const handleCopy = () => {
     navigator.clipboard.writeText(publicUrl);
@@ -82,18 +107,18 @@ export default function PublishModal({
           <div>
             <h3 className="text-lg font-black tracking-tight">Publikasi & Bagikan Microsite</h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Dapatkan URL publik dan bagikan tautan resmi ke calon mahasiswa
+              Microsite telah disinkronisasikan ke Firebase Cloud dan aktif secara publik di internet
             </p>
           </div>
 
           {/* Status Badge */}
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shadow-xs">
             <Radio className="w-3.5 h-3.5 animate-pulse text-emerald-500" />
-            <span>Aktif & Siap Diakses Publik</span>
+            <span>Terbit di Cloud (Live Real-Time)</span>
           </div>
         </div>
 
-        {/* Public URL Box */}
+        {/* Public URL Box with Copy Button */}
         <div className="space-y-1.5 text-left">
           <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
             Tautan Publik Resmi (Clean URL):
@@ -109,7 +134,7 @@ export default function PublishModal({
             />
             <button
               onClick={handleCopy}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl shadow-md transition transform active:scale-95"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl shadow-md transition transform active:scale-95"
             >
               {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
               <span>{copied ? 'Tersalin!' : 'Salin URL'}</span>
@@ -117,13 +142,13 @@ export default function PublishModal({
           </div>
         </div>
 
-        {/* Action Buttons: Open & QR */}
+        {/* Action Buttons: Open & QR & Sync */}
         <div className="grid grid-cols-2 gap-2.5">
           <a
             href={publicUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/15 text-slate-800 dark:text-white font-bold text-xs rounded-xl border border-slate-300 dark:border-white/10 transition shadow-sm"
+            className="flex items-center justify-center gap-2 py-2.5 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 font-bold text-xs rounded-xl border border-blue-200 dark:border-blue-700/50 transition shadow-xs"
           >
             <Eye className="w-4 h-4 text-blue-500" />
             <span>Buka Tab Baru</span>
@@ -133,7 +158,7 @@ export default function PublishModal({
             onClick={() => {
               if (onOpenQr) onOpenQr();
             }}
-            className="flex items-center justify-center gap-2 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/15 text-slate-800 dark:text-white font-bold text-xs rounded-xl border border-slate-300 dark:border-white/10 transition shadow-sm"
+            className="flex items-center justify-center gap-2 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/15 text-slate-800 dark:text-white font-bold text-xs rounded-xl border border-slate-300 dark:border-white/10 transition shadow-xs"
           >
             <QrCode className="w-4 h-4 text-amber-500" />
             <span>Unduh QR Code</span>

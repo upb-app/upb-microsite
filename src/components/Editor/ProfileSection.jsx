@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Building2, 
   Image, 
@@ -8,10 +8,19 @@ import {
   Mail, 
   Sparkles,
   Eye,
-  EyeOff
+  EyeOff,
+  Link2,
+  Copy,
+  Check,
+  ExternalLink,
+  ShieldCheck,
+  Globe,
+  Radio,
+  AlertCircle
 } from 'lucide-react';
-
+import confetti from 'canvas-confetti';
 import { normalizeImageUrl, DEFAULT_LOGO, DEFAULT_BANNER } from '../../utils/imageHelper';
+import { sanitizeSlug, validateSlug } from '../../services/micrositeService';
 
 const BANNER_PRESETS = [
   { label: 'Gedung UPB', url: '/img/upb-bg2.JPG' },
@@ -29,8 +38,55 @@ const AVATAR_PRESETS = [
   { label: 'Organisasi Mahasiswa', url: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=300&auto=format&fit=crop&q=80' },
 ];
 
-export default function ProfileSection({ profile = {}, updateProfile }) {
+export default function ProfileSection({ 
+  profile = {}, 
+  updateProfile,
+  site = {},
+  updateSiteMeta,
+  microsites = [],
+  onPublishCloud
+}) {
   const p = profile || {};
+  const currentSlug = site?.slug || p.slug || 'pmb-utama';
+  const currentTitle = site?.title || p.universityName || 'Universitas Pelita Bangsa';
+
+  const [copied, setCopied] = useState(false);
+  const [slugError, setSlugError] = useState('');
+
+  const origin = typeof window !== 'undefined' && window.location.origin.includes('localhost') 
+    ? window.location.origin 
+    : 'https://pmbupb.site';
+  
+  const publicUrl = `${origin}/${currentSlug}`;
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(publicUrl);
+    setCopied(true);
+    confetti({ particleCount: 50, spread: 60 });
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleSlugChange = (rawVal) => {
+    const clean = sanitizeSlug(rawVal);
+    setSlugError('');
+
+    if (updateSiteMeta) {
+      updateSiteMeta('slug', clean);
+    }
+    updateProfile('slug', clean);
+
+    const validation = validateSlug(clean, microsites, site?.id);
+    if (!validation.isValid) {
+      setSlugError(validation.message);
+    }
+  };
+
+  const handleTitleChange = (val) => {
+    if (updateSiteMeta) {
+      updateSiteMeta('title', val);
+    }
+    updateProfile('universityName', val);
+  };
 
   const handleBannerUpload = (e) => {
     const file = e.target.files?.[0];
@@ -60,6 +116,127 @@ export default function ProfileSection({ profile = {}, updateProfile }) {
   return (
     <div className="p-4 sm:p-5 space-y-5 animate-fadeIn text-left">
       
+      {/* 0. PENGATURAN IDENTITAS & SLUG URL MICROSITE (CLEAN & SAFE) */}
+      <div className="bg-gradient-to-br from-blue-50/80 via-indigo-50/50 to-white dark:from-slate-800/80 dark:via-[#0c1f3d]/60 dark:to-slate-900 border border-blue-200/80 dark:border-blue-500/30 rounded-2xl p-4 sm:p-5 space-y-4 shadow-sm">
+        
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-blue-100 dark:border-white/10 pb-3">
+          <div className="flex items-center gap-2.5">
+            <span className="p-2 bg-blue-600 text-white rounded-xl flex-shrink-0 shadow-sm">
+              <Globe className="w-4 h-4" />
+            </span>
+            <div>
+              <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+                <span>Nama & URL Publik Microsite</span>
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                  <Radio className="w-2.5 h-2.5 animate-pulse text-emerald-500" />
+                  Live Publik
+                </span>
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Ubah nama dan slug link resmi yang dapat diakses calon mahasiswa di internet
+              </p>
+            </div>
+          </div>
+
+          {/* Quick Copy Link Button */}
+          <button
+            type="button"
+            onClick={handleCopyLink}
+            className="flex items-center justify-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl shadow-md transition transform active:scale-95 flex-shrink-0"
+          >
+            {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+            <span>{copied ? 'Link Tersalin!' : 'Salin Link Microsite'}</span>
+          </button>
+        </div>
+
+        <div className="space-y-3.5">
+          {/* 1. Nama / Judul Microsite */}
+          <div>
+            <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
+              Nama / Judul Microsite:
+            </label>
+            <input
+              type="text"
+              value={currentTitle}
+              onChange={(e) => handleTitleChange(e.target.value)}
+              placeholder="Contoh: Penerimaan Mahasiswa Baru 2026 / Fakultas Teknik"
+              className="w-full px-3 py-2.5 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition shadow-2xs"
+            />
+          </div>
+
+          {/* 2. Slug URL Kustom (Hanya Karakter Aman a-z, 0-9, -) */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-bold text-slate-800 dark:text-slate-200">
+                Slug URL Bersih (Clean URL Slug):
+              </label>
+              <span className="text-[11px] text-slate-400 font-normal">
+                Hanya huruf kecil, angka, dan strip (-)
+              </span>
+            </div>
+
+            <div className="flex items-center">
+              <span className="px-3 py-2.5 bg-slate-100 dark:bg-slate-900 border border-r-0 border-slate-300 dark:border-slate-700 rounded-l-xl text-xs font-mono font-bold text-slate-600 dark:text-slate-400 select-none">
+                pmbupb.site/
+              </span>
+              <input
+                type="text"
+                value={currentSlug}
+                onChange={(e) => handleSlugChange(e.target.value)}
+                placeholder="pmb-utama"
+                className="w-full px-3 py-2.5 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-r-xl text-xs font-mono font-bold text-blue-600 dark:text-blue-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition shadow-2xs"
+              />
+            </div>
+
+            {/* Error Message for Invalid Slug */}
+            {slugError && (
+              <div className="mt-1.5 p-2 rounded-lg bg-red-500/10 border border-red-500/30 flex items-center gap-1.5 text-xs text-red-600 dark:text-red-400 animate-fadeIn">
+                <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>{slugError}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Live Link Result Banner */}
+          <div className="flex items-center justify-between p-2.5 bg-white dark:bg-slate-950/80 border border-blue-100 dark:border-slate-800 rounded-xl text-xs">
+            <div className="flex items-center gap-2 min-w-0 pr-2">
+              <Link2 className="w-4 h-4 text-blue-500 flex-shrink-0" />
+              <span className="text-slate-500 dark:text-slate-400 text-[11px]">Tautan Langsung:</span>
+              <a 
+                href={publicUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-mono font-bold text-blue-600 dark:text-blue-400 hover:underline truncate"
+              >
+                {publicUrl}
+              </a>
+            </div>
+
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <button
+                type="button"
+                onClick={handleCopyLink}
+                className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition"
+                title="Salin Tautan"
+              >
+                {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+              </button>
+              <a
+                href={publicUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition"
+                title="Buka di Tab Baru"
+              >
+                <ExternalLink className="w-3.5 h-3.5 text-blue-500" />
+              </a>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
       {/* 1. Header Banner Settings */}
       <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 space-y-3.5">
         <div className="flex items-center justify-between">
@@ -99,39 +276,36 @@ export default function ProfileSection({ profile = {}, updateProfile }) {
               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
                 <label className="cursor-pointer px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-lg">
                   <Upload className="w-3.5 h-3.5" />
-                  Unggah Gambar
+                  Ganti Gambar
                   <input type="file" accept="image/*" onChange={handleBannerUpload} className="hidden" />
                 </label>
               </div>
             </div>
 
-            {/* Input URL */}
+            {/* Input URL Manual */}
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">URL Gambar Banner</label>
               <input
                 type="text"
-                value={p.headerBannerUrl || ''}
+                value={p.headerBannerUrl || p.bannerUrl || ''}
                 onChange={(e) => updateProfile('headerBannerUrl', e.target.value)}
-                placeholder="https://..."
+                placeholder="https://... atau /img/upb-bg.JPG"
                 className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-200 focus:outline-none focus:border-amber-500 transition"
               />
             </div>
 
-            {/* Presets */}
+            {/* Banner Presets */}
             <div>
-              <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1.5">Pilihan Gambar Banner Cepat:</label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <span className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Preset Foto Kampus & Fasilitas:</span>
+              <div className="flex flex-wrap gap-1.5">
                 {BANNER_PRESETS.map((preset, idx) => (
                   <button
                     key={idx}
                     type="button"
                     onClick={() => updateProfile('headerBannerUrl', preset.url)}
-                    className="p-2 bg-white dark:bg-slate-900/80 hover:bg-amber-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-left text-xs font-medium text-slate-700 dark:text-slate-300 transition flex items-center gap-2 group"
+                    className="px-2.5 py-1 text-[11px] rounded-lg bg-slate-200 dark:bg-slate-700 hover:bg-amber-500/20 dark:hover:bg-amber-500/30 hover:text-amber-700 dark:hover:text-amber-300 text-slate-700 dark:text-slate-300 transition"
                   >
-                    <div className="w-5 h-5 rounded-md bg-slate-200 dark:bg-slate-700 overflow-hidden flex-shrink-0">
-                      <img src={preset.url} alt="" className="w-full h-full object-cover" />
-                    </div>
-                    <span className="truncate">{preset.label}</span>
+                    {preset.label}
                   </button>
                 ))}
               </div>
@@ -140,63 +314,51 @@ export default function ProfileSection({ profile = {}, updateProfile }) {
         )}
       </div>
 
-      {/* 2. Logo / Avatar Kampus */}
+      {/* 2. Avatar / Logo Kampus */}
       <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 space-y-3.5">
         <div className="flex items-center gap-2">
           <span className="p-2 bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-xl">
             <Building2 className="w-4 h-4" />
           </span>
           <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Logo & Foto Profil</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Identitas visual lambang universitas atau foto ketua program</p>
+            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Logo & Avatar Profil</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Lambang institusi, logo fakultas, atau foto pimpinan</p>
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-center gap-4">
-          <div className="relative w-20 h-20 rounded-2xl overflow-hidden bg-white p-1 border-2 border-slate-300 dark:border-slate-600 shadow-md flex-shrink-0 group">
+        <div className="flex items-center gap-4">
+          <div className="relative w-16 h-16 rounded-2xl overflow-hidden bg-white dark:bg-slate-900 border-2 border-slate-300 dark:border-slate-700 flex-shrink-0 shadow-md">
             <img 
               src={avatarPreview} 
-              alt="Avatar Preview" 
-              className="w-full h-full object-contain rounded-xl"
+              alt="Logo Preview" 
+              className="w-full h-full object-contain p-1"
               onError={(e) => { e.target.src = DEFAULT_LOGO; }}
             />
-            <label className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center cursor-pointer text-white">
-              <Upload className="w-4 h-4" />
-              <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
-            </label>
           </div>
 
-          <div className="flex-1 w-full space-y-2">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">URL Logo / Foto</label>
-              <input
-                type="text"
-                value={p.avatarUrl || ''}
-                onChange={(e) => updateProfile('avatarUrl', e.target.value)}
-                placeholder="/img/logo-universitas-pelita-bangsa.png"
-                className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-200 focus:outline-none focus:border-amber-500 transition"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Quick Avatar Presets */}
-        <div>
-          <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1.5">Pilihan Logo / Avatar Cepat:</label>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {AVATAR_PRESETS.map((preset, idx) => (
+          <div className="flex-1 space-y-2">
+            <div className="flex gap-2">
+              <label className="cursor-pointer px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition">
+                <Upload className="w-3.5 h-3.5" />
+                Upload Logo
+                <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
+              </label>
               <button
-                key={idx}
                 type="button"
-                onClick={() => updateProfile('avatarUrl', preset.url)}
-                className="p-2 bg-white dark:bg-slate-900/80 hover:bg-amber-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-left text-xs font-medium text-slate-700 dark:text-slate-300 transition flex items-center gap-2"
+                onClick={() => updateProfile('avatarUrl', DEFAULT_LOGO)}
+                className="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-semibold transition"
               >
-                <div className="w-5 h-5 rounded-md bg-slate-200 dark:bg-slate-700 overflow-hidden flex-shrink-0">
-                  <img src={preset.url} alt="" className="w-full h-full object-cover" />
-                </div>
-                <span className="truncate">{preset.label}</span>
+                Gunakan Logo Resmi UPB
               </button>
-            ))}
+            </div>
+            
+            <input
+              type="text"
+              value={p.avatarUrl || ''}
+              onChange={(e) => updateProfile('avatarUrl', e.target.value)}
+              placeholder="URL Gambar Logo (https://...)"
+              className="w-full px-3 py-1.5 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-200 focus:outline-none focus:border-blue-500 transition"
+            />
           </div>
         </div>
       </div>
@@ -209,22 +371,11 @@ export default function ProfileSection({ profile = {}, updateProfile }) {
           </span>
           <div>
             <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Informasi & Deskripsi</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Nama universitas, fakultas, slogan, dan pengantar profil</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Unit fakultas, slogan, dan pengantar profil</p>
           </div>
         </div>
 
         <div className="space-y-3">
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Nama Universitas / Lembaga</label>
-            <input
-              type="text"
-              value={p.universityName || p.title || ''}
-              onChange={(e) => updateProfile('universityName', e.target.value)}
-              placeholder="UNIVERSITAS PELITA BANGSA"
-              className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-500 transition"
-            />
-          </div>
-
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Nama Fakultas / Unit / Departemen</label>
             <input

@@ -24,11 +24,36 @@ import { sanitizeUrl } from '../utils/security';
 import { recordPageView, recordLinkClick } from '../services/analyticsService';
 import { normalizeImageUrl, DEFAULT_LOGO, DEFAULT_BANNER } from '../utils/imageHelper';
 import QrCodeModal from '../components/Modals/QrCodeModal';
-import confetti from 'canvas-confetti';
+import { fetchPublishedMicrosite, subscribeToPublishedMicrosite } from '../services/micrositeService';
 
-export default function PublicMicrositePage({ site, onGoHome }) {
+export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
+  const [liveSite, setLiveSite] = useState(initialSite);
   const [copied, setCopied] = useState(false);
   const [isQrOpen, setIsQrOpen] = useState(false);
+
+  const site = liveSite || initialSite;
+  const activeSlug = site?.slug || initialSite?.slug;
+
+  // Real-time Cloud Firestore subscription: when admin publishes, all visitors across the globe update live
+  useEffect(() => {
+    if (!activeSlug) return;
+
+    // 1. Initial fetch from Cloud
+    fetchPublishedMicrosite(activeSlug).then((cloudData) => {
+      if (cloudData && cloudData.data) {
+        setLiveSite(prev => ({ ...(prev || {}), ...cloudData }));
+      }
+    });
+
+    // 2. Real-time live listener
+    const unsubscribe = subscribeToPublishedMicrosite(activeSlug, (cloudData) => {
+      if (cloudData && cloudData.data) {
+        setLiveSite(prev => ({ ...(prev || {}), ...cloudData }));
+      }
+    });
+
+    return () => unsubscribe();
+  }, [activeSlug]);
 
   const data = site?.data || {};
   const profile = data.profile || {};
