@@ -28,7 +28,8 @@ export default function MicrositeManagerModal({
   onCreateSite,
   onDuplicateSite,
   onDeleteSite,
-  onUpdateSite
+  onUpdateSite,
+  onToggleSiteStatus
 }) {
   const { isDark } = useTheme();
   const [searchTerm, setSearchTerm] = useState('');
@@ -335,6 +336,7 @@ export default function MicrositeManagerModal({
         <div className="flex-1 overflow-y-auto pr-1 my-2 grid grid-cols-1 md:grid-cols-2 gap-3 text-left">
           {filteredSites.map((site) => {
             const isActive = site.id === activeSiteId;
+            const isOnline = site.status !== 'Inactive' && site.isActive !== false;
             const isEditing = editingSiteId === site.id;
             const siteUrl = `${origin}/${site.slug}`;
 
@@ -356,16 +358,26 @@ export default function MicrositeManagerModal({
                     </span>
                     
                     <div className="flex items-center gap-1.5">
+                      {/* Online / Offline Toggle Button */}
+                      <button
+                        type="button"
+                        onClick={() => onToggleSiteStatus && onToggleSiteStatus(site.id)}
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold border transition ${
+                          isOnline
+                            ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/25'
+                            : 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30 hover:bg-rose-500/25'
+                        }`}
+                        title={isOnline ? 'Klik untuk nonaktifkan microsite ini' : 'Klik untuk aktifkan microsite ini'}
+                      >
+                        {isOnline ? 'Aktif (Publik)' : 'Nonaktif (Tutup)'}
+                      </button>
+
                       {isActive && (
-                        <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-600 text-white flex items-center gap-1 shadow-2xs">
+                        <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-blue-600 text-white flex items-center gap-1 shadow-2xs">
                           <Check className="w-3 h-3" />
-                          Aktif
+                          Sedang Diedit
                         </span>
                       )}
-                      
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold border border-blue-500/20">
-                        Live Cloud
-                      </span>
                     </div>
                   </div>
 
