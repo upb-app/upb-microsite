@@ -1,5 +1,4 @@
-import React from 'react';
-import { ShieldAlert, Home, ArrowLeft, Globe, HelpCircle } from 'lucide-react';
+import { ShieldAlert, Home, Globe } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 
 export default function NotFoundPage({ onGoHome }) {
@@ -62,17 +61,6 @@ export default function NotFoundPage({ onGoHome }) {
           </p>
         </div>
 
-        {/* Security / System Notice */}
-        <div className={`p-3.5 rounded-2xl border text-xs text-left flex items-start gap-2.5 ${
-          isDark 
-            ? 'bg-[#040914]/80 border-white/10 text-slate-400' 
-            : 'bg-slate-50 border-slate-200 text-slate-600'
-        }`}>
-          <HelpCircle className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
-          <p className="text-[11px] leading-relaxed">
-            Jika Anda adalah staf pengelola PMB Universitas Pelita Bangsa, pastikan Anda telah mengakses portal resmi melalui pintu otentikasi yang sah.
-          </p>
-        </div>
 
         {/* Action Button */}
         <div className="pt-2">
