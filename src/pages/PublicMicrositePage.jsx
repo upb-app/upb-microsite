@@ -33,6 +33,7 @@ import {
 
 export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
   const [cloudSite, setCloudSite] = useState(null);
+  const [isLoading, setIsLoading] = useState(!initialSite?.data);
   const [copied, setCopied] = useState(false);
   const [isQrOpen, setIsQrOpen] = useState(false);
 
@@ -43,17 +44,23 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
     if (!activeSlug) return;
     let isMounted = true;
 
-    // 1. Fetch data terkini dari Firebase Cloud Firestore
+    // 1. Fetch data terkini dari Firebase Cloud Firestore & Vercel API
     fetchPublishedMicrosite(activeSlug).then((data) => {
-      if (isMounted && data && data.data) {
-        setCloudSite(data);
+      if (isMounted) {
+        if (data && data.data) {
+          setCloudSite(data);
+        }
+        setIsLoading(false);
       }
+    }).catch(() => {
+      if (isMounted) setIsLoading(false);
     });
 
     // 2. Real-time Live Listener Firestore
     const unsubscribe = subscribeToPublishedMicrosite(activeSlug, (data) => {
       if (isMounted && data && data.data) {
         setCloudSite(data);
+        setIsLoading(false);
       }
     });
 
@@ -66,6 +73,7 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
           if (event.data?.type === 'MICROSITE_UPDATED' && event.data?.slug === activeSlug) {
             if (isMounted && event.data?.site) {
               setCloudSite(event.data.site);
+              setIsLoading(false);
             }
           }
         };
@@ -80,6 +88,7 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
           const found = list.find(s => s.slug === activeSlug);
           if (found && isMounted) {
             setCloudSite(found);
+            setIsLoading(false);
           }
         } catch (err) {}
       }
@@ -90,6 +99,7 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
     const handleCustom = (e) => {
       if (e.detail && e.detail.slug === activeSlug && isMounted) {
         setCloudSite(e.detail);
+        setIsLoading(false);
       }
     };
     window.addEventListener('upb-microsite-published', handleCustom);
@@ -103,41 +113,59 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
     };
   }, [activeSlug]);
 
-  // Merge Priority: Cloud Data -> Initial Passed Site -> Matching Preset -> Default Baseline
-  const currentSite = cloudSite || initialSite || {};
-  const matchingPreset = DEFAULT_MICROSITES_LIST.find(s => s.slug === activeSlug) || DEFAULT_MICROSITES_LIST[0];
-  
-  const rawData = currentSite.data || matchingPreset.data || DEFAULT_MICROSITE_DATA;
+  // Loading state while resolving live cloud data
+  if (isLoading && !cloudSite && !initialSite?.data && activeSlug !== 'pmb-utama') {
+    return (
+      <div className="min-h-screen bg-[#040914] text-white flex flex-col items-center justify-center space-y-4 p-4 font-sans">
+        <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-blue-700 via-blue-600 to-indigo-600 p-0.5 shadow-2xl animate-pulse">
+          <div className="w-full h-full rounded-[22px] bg-[#071326] flex items-center justify-center">
+            <img src={DEFAULT_LOGO} alt="UPB" className="w-10 h-10 object-contain" />
+          </div>
+        </div>
+        <div className="text-center space-y-1">
+          <h3 className="text-sm font-black tracking-wider text-slate-200 uppercase">Memuat Microsite...</h3>
+          <p className="text-xs font-mono text-blue-400">pmbupb.site/{activeSlug}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Merge Priority: Cloud Data -> Initial Passed Site -> Matching Official Preset -> Clean Baseline
+  const isOfficialPresetSlug = DEFAULT_MICROSITES_LIST.some(s => s.slug === activeSlug);
+  const matchingPreset = isOfficialPresetSlug ? DEFAULT_MICROSITES_LIST.find(s => s.slug === activeSlug) : null;
+
+  const currentSite = cloudSite || (initialSite?.data ? initialSite : null) || matchingPreset || {};
+  const rawData = currentSite.data || matchingPreset?.data || DEFAULT_MICROSITE_DATA;
 
   const profile = {
     ...DEFAULT_MICROSITE_DATA.profile,
-    ...(matchingPreset.data?.profile || {}),
+    ...(matchingPreset?.data?.profile || {}),
     ...(rawData.profile || {})
   };
 
   const theme = {
     ...DEFAULT_MICROSITE_DATA.theme,
-    ...(matchingPreset.data?.theme || {}),
+    ...(matchingPreset?.data?.theme || {}),
     ...(rawData.theme || {})
   };
 
   const buttonStyle = {
     ...DEFAULT_MICROSITE_DATA.buttonStyle,
-    ...(matchingPreset.data?.buttonStyle || {}),
+    ...(matchingPreset?.data?.buttonStyle || {}),
     ...(rawData.buttonStyle || {})
   };
 
   const socials = {
     ...DEFAULT_MICROSITE_DATA.socials,
-    ...(matchingPreset.data?.socials || {}),
+    ...(matchingPreset?.data?.socials || {}),
     ...(rawData.socials || {})
   };
 
   const links = Array.isArray(rawData.links) && rawData.links.length > 0
     ? rawData.links
-    : (Array.isArray(matchingPreset.data?.links) && matchingPreset.data.links.length > 0 ? matchingPreset.data.links : DEFAULT_MICROSITE_DATA.links);
+    : (matchingPreset?.data?.links || []);
 
-  // Single Clean Title Resolution (prevents repeating identical headings)
+  // Single Clean Title Resolution
   const mainTitle = profile.title || currentSite.title || profile.departmentName || profile.universityName || 'UNIVERSITAS PELITA BANGSA';
   
   const secondaryTitle = (
@@ -260,7 +288,7 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
 
   return (
     <div 
-      className={`min-h-screen text-slate-100 flex flex-col justify-between relative overflow-x-hidden ${
+      className={`min-h-screen text-slate-100 flex flex-col justify-between relative overflow-x-hidden font-sans ${
         theme.bgType === 'gradient' ? (theme.bgGradient || 'bg-gradient-to-b from-[#0b1d3a] via-[#071326] to-[#040b17]') : ''
       }`}
       style={getBackgroundStyle()}
@@ -405,53 +433,59 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
 
         {/* Interactive Links / Buttons List */}
         <div className="w-full space-y-3 mb-6">
-          {links
-            .filter(link => link.isActive !== false)
-            .map((link) => {
-              const safeUrl = sanitizeUrl(link.url);
-              const shapeClass = getButtonShapeClass();
-              const variantClass = getButtonVariantClass();
-              const animClass = getAnimationClass(link.animation);
+          {links.length === 0 ? (
+            <div className="p-5 text-center bg-black/30 border border-white/10 rounded-2xl text-xs text-slate-400">
+              Belum ada tautan yang ditambahkan ke microsite ini.
+            </div>
+          ) : (
+            links
+              .filter(link => link.isActive !== false)
+              .map((link) => {
+                const safeUrl = sanitizeUrl(link.url);
+                const shapeClass = getButtonShapeClass();
+                const variantClass = getButtonVariantClass();
+                const animClass = getAnimationClass(link.animation);
 
-              return (
-                <a
-                  key={link.id || `link-${Math.random()}`}
-                  href={safeUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => handleLinkClick(link)}
-                  className={`group w-full p-4 flex items-center justify-between transition-all duration-300 transform active:scale-98 ${shapeClass} ${variantClass} ${animClass}`}
-                >
-                  <div className="flex items-center gap-3.5 min-w-0 pr-2">
-                    {link.icon && (
-                      <div className="p-2 rounded-xl bg-black/20 text-white flex-shrink-0">
-                        <DynamicIcon name={link.icon} className="w-5 h-5" />
-                      </div>
-                    )}
+                return (
+                  <a
+                    key={link.id || `link-${Math.random()}`}
+                    href={safeUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => handleLinkClick(link)}
+                    className={`group w-full p-4 flex items-center justify-between transition-all duration-300 transform active:scale-98 ${shapeClass} ${variantClass} ${animClass}`}
+                  >
+                    <div className="flex items-center gap-3.5 min-w-0 pr-2">
+                      {link.icon && (
+                        <div className="p-2 rounded-xl bg-black/20 text-white flex-shrink-0">
+                          <DynamicIcon name={link.icon} className="w-5 h-5" />
+                        </div>
+                      )}
 
-                    <div className="text-left min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-extrabold text-sm tracking-tight truncate">
-                          {link.title || 'Tautan Informasi'}
-                        </span>
-                        {link.badge && (
-                          <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 shadow-xs">
-                            {link.badge}
+                      <div className="text-left min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-extrabold text-sm tracking-tight truncate">
+                            {link.title || 'Tautan Informasi'}
                           </span>
+                          {link.badge && (
+                            <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 shadow-xs">
+                              {link.badge}
+                            </span>
+                          )}
+                        </div>
+                        {(link.subtitle || link.description) && (
+                          <p className="text-xs opacity-80 mt-0.5 truncate max-w-[240px] sm:max-w-xs">
+                            {link.subtitle || link.description}
+                          </p>
                         )}
                       </div>
-                      {(link.subtitle || link.description) && (
-                        <p className="text-xs opacity-80 mt-0.5 truncate max-w-[240px] sm:max-w-xs">
-                          {link.subtitle || link.description}
-                        </p>
-                      )}
                     </div>
-                  </div>
 
-                  <ExternalLink className="w-4 h-4 opacity-70 group-hover:opacity-100 group-hover:translate-x-0.5 transition flex-shrink-0" />
-                </a>
-              );
-            })}
+                    <ExternalLink className="w-4 h-4 opacity-70 group-hover:opacity-100 group-hover:translate-x-0.5 transition flex-shrink-0" />
+                  </a>
+                );
+              })
+          )}
         </div>
 
         {/* Bottom Socials */}

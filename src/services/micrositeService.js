@@ -1,7 +1,7 @@
 /**
  * Microsite Cloud Synchronization Service
  * Menghubungkan pembuatan, pengubahan nama/slug, dan publikasi microsite
- * secara real-time ke Firebase Cloud Firestore untuk akses publik global di internet.
+ * secara real-time ke Firebase Cloud Firestore & Vercel Edge API untuk akses publik global di internet.
  */
 import { db, isFirebaseConfigured } from './firebase';
 import { 
@@ -103,7 +103,7 @@ export function validateSlug(slug, existingMicrosites = [], currentSiteId = null
 }
 
 /**
- * Publikasikan Microsite ke Firebase Cloud Firestore (Real-Time Internet Global)
+ * Publikasikan Microsite ke Firebase Cloud Firestore + Vercel Serverless (Real-Time Internet Global)
  */
 export async function publishMicrositeToCloud(microsite) {
   if (!microsite || !microsite.slug) return null;
@@ -126,13 +126,13 @@ export async function publishMicrositeToCloud(microsite) {
     cloudSyncStatus: 'live'
   };
 
-  // 1. Simpan ke Firestore jika Firebase terhubung
+  // 1. Simpan ke Firestore SDK
   if (isFirebaseConfigured() && db) {
     try {
       const docRef = doc(db, 'published_microsites', cleanSlug);
       await setDoc(docRef, payload, { merge: true });
 
-      // Catat juga ke index registry untuk lookup cepat
+      // Index registry
       const indexRef = doc(db, 'microsites_registry', payload.id);
       await setDoc(indexRef, {
         id: payload.id,
@@ -141,18 +141,42 @@ export async function publishMicrositeToCloud(microsite) {
         updatedAt: nowIso
       }, { merge: true });
     } catch (err) {
-      console.warn('Firestore Cloud Save Notice:', err.message);
+      console.warn('Firestore SDK save notice:', err.message);
     }
   }
 
-  // 2. Simpan cache lokal per slug untuk lookup instan
+  // 2. Simpan ke Vercel Serverless Function /api/microsite
+  try {
+    fetch('/api/microsite', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).catch(() => {});
+  } catch (e) {}
+
+  // 3. Simpan ke Firebase Firestore REST API (Direct Cloud Backup)
+  try {
+    const firestoreRestUrl = `https://firestore.googleapis.com/v1/projects/upb-microsite/databases/(default)/documents/published_microsites/${cleanSlug}`;
+    fetch(firestoreRestUrl, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fields: {
+          payloadJson: { stringValue: JSON.stringify(payload) },
+          updatedAt: { stringValue: nowIso }
+        }
+      })
+    }).catch(() => {});
+  } catch (e) {}
+
+  // 4. Simpan cache lokal per slug untuk lookup instan
   try {
     if (typeof localStorage !== 'undefined') {
       localStorage.setItem(`upb_site_slug_${cleanSlug}`, JSON.stringify(payload));
     }
   } catch (e) {}
 
-  // 3. Broadcast Channel untuk sinkronisasi instan antar-tab di browser
+  // 5. Broadcast Channel untuk sinkronisasi instan antar-tab di browser
   try {
     const channel = getBroadcastChannel();
     if (channel) {
@@ -160,7 +184,7 @@ export async function publishMicrositeToCloud(microsite) {
     }
   } catch (e) {}
 
-  // 4. Dispatch window custom event
+  // 6. Dispatch window custom event
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('upb-microsite-published', { detail: payload }));
   }
@@ -169,13 +193,13 @@ export async function publishMicrositeToCloud(microsite) {
 }
 
 /**
- * Ambil data microsite publik dari Firestore berdasarkan slug
+ * Ambil data microsite publik dari Cloud berdasarkan slug (Multi-Source Resilience)
  */
 export async function fetchPublishedMicrosite(slug) {
   if (!slug) return null;
   const cleanSlug = sanitizeSlug(slug);
 
-  // 1. Cek Firestore Cloud
+  // 1. Cek Firestore SDK
   if (isFirebaseConfigured() && db) {
     try {
       const docRef = doc(db, 'published_microsites', cleanSlug);
@@ -188,16 +212,54 @@ export async function fetchPublishedMicrosite(slug) {
         return data;
       }
     } catch (err) {
-      console.warn('Error fetching cloud microsite for slug', cleanSlug, err.message);
+      // Permission denied or network issue -> continue to fallbacks
     }
   }
 
-  // 2. Fallback ke local cache per slug
+  // 2. Cek Vercel Serverless Function /api/microsite
+  try {
+    const apiRes = await fetch(`/api/microsite?slug=${encodeURIComponent(cleanSlug)}`);
+    if (apiRes.ok) {
+      const apiData = await apiRes.json();
+      if (apiData && apiData.data) {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem(`upb_site_slug_${cleanSlug}`, JSON.stringify(apiData));
+        }
+        return apiData;
+      }
+    }
+  } catch (e) {}
+
+  // 3. Cek Firebase Firestore REST API
+  try {
+    const firestoreRestUrl = `https://firestore.googleapis.com/v1/projects/upb-microsite/databases/(default)/documents/published_microsites/${cleanSlug}`;
+    const restRes = await fetch(firestoreRestUrl);
+    if (restRes.ok) {
+      const json = await restRes.json();
+      if (json.fields?.payloadJson?.stringValue) {
+        const parsed = JSON.parse(json.fields.payloadJson.stringValue);
+        if (parsed && typeof localStorage !== 'undefined') {
+          localStorage.setItem(`upb_site_slug_${cleanSlug}`, JSON.stringify(parsed));
+        }
+        return parsed;
+      }
+    }
+  } catch (e) {}
+
+  // 4. Fallback ke local cache per slug
   try {
     if (typeof localStorage !== 'undefined') {
       const cached = localStorage.getItem(`upb_site_slug_${cleanSlug}`);
       if (cached) {
         return JSON.parse(cached);
+      }
+      
+      // 5. Cek multi-microsites list di localStorage
+      const multiListRaw = localStorage.getItem('upb_multi_microsites_list_v2');
+      if (multiListRaw) {
+        const list = JSON.parse(multiListRaw);
+        const match = list.find(s => s.slug === cleanSlug);
+        if (match) return match;
       }
     }
   } catch (e) {}

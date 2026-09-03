@@ -511,26 +511,11 @@ function MainAppContent() {
     }
 
     if (!publicSite) {
-      const prettyTitle = publicSlug
-        .split('-')
-        .map(w => w.charAt(0).toUpperCase() + w.slice(1))
-        .join(' ');
-
       publicSite = {
         id: `site-${publicSlug}`,
-        title: prettyTitle,
         slug: publicSlug,
         category: 'Portal Resmi',
-        data: {
-          ...DEFAULT_MICROSITE_DATA,
-          profile: {
-            ...DEFAULT_MICROSITE_DATA.profile,
-            universityName: prettyTitle,
-            departmentName: 'Portal Informasi & Layanan Terpadu UPB',
-            slug: publicSlug
-          },
-          links: DEFAULT_MICROSITE_DATA.links
-        }
+        data: null // Leave null so PublicMicrositePage loads actual live cloud data
       };
     }
 
