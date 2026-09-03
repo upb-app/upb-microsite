@@ -200,7 +200,7 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
   const handleLinkClick = (linkId) => {
     const targetLink = links.find(l => l.id === linkId);
     if (targetLink) {
-      recordLinkClick(currentSiteId, linkId, targetLink.title, targetLink.url);
+      recordLinkClick(currentSiteId, linkId, targetLink.title, targetLink.url, activeSlug);
     }
   };
 

@@ -23,30 +23,50 @@ import {
 
 export default function AnalyticsSection({ site = {}, links = [], onResetClicks }) {
   const siteId = site?.id || 'site-pmb-utama';
-  const [stats, setStats] = useState(() => getLocalAnalytics(siteId));
-  const [activityLogs, setActivityLogs] = useState(() => getLocalActivityLogs(siteId));
+  const siteSlug = site?.slug || 'pmb-utama';
+  const [stats, setStats] = useState(() => getLocalAnalytics(siteId, siteSlug));
+  const [activityLogs, setActivityLogs] = useState(() => getLocalActivityLogs(siteId, siteSlug));
 
-  // Subscribe to authentic real-time updates (Cloud Firestore + LocalStorage + Live Events)
+  // Subscribe to authentic real-time updates (Cloud Firestore + BroadcastChannel + LocalStorage)
   useEffect(() => {
-    if (!siteId) return;
+    if (!siteId && !siteSlug) return;
 
     const refreshData = () => {
-      setStats({ ...getLocalAnalytics(siteId) });
-      setActivityLogs([...getLocalActivityLogs(siteId)]);
+      setStats({ ...getLocalAnalytics(siteId, siteSlug) });
+      setActivityLogs([...getLocalActivityLogs(siteId, siteSlug)]);
     };
 
     // 1. Initial load
     refreshData();
 
-    // 2. Event listener for same-window updates
+    // 2. BroadcastChannel Listener untuk sinkronisasi instan dari Incognito / Tab lain
+    let channel;
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        channel = new BroadcastChannel('upb_microsites_channel');
+        channel.onmessage = (event) => {
+          if (event.data?.type === 'ANALYTICS_CLICK' || event.data?.type === 'ANALYTICS_VIEW') {
+            const matchSlug = !event.data?.slug || event.data?.slug === siteSlug;
+            const matchId = !event.data?.siteId || event.data?.siteId === siteId;
+            if (matchSlug || matchId) {
+              refreshData();
+            }
+          }
+        };
+      }
+    } catch (e) {}
+
+    // 3. Event listener for same-window updates
     const handleCustomUpdate = (e) => {
-      if (!e.detail || e.detail.siteId === siteId) {
+      const matchSlug = !e.detail?.slug || e.detail?.slug === siteSlug;
+      const matchId = !e.detail?.siteId || e.detail?.siteId === siteId;
+      if (matchSlug || matchId) {
         refreshData();
       }
     };
     window.addEventListener('upb-analytics-updated', handleCustomUpdate);
 
-    // 3. Event listener for cross-tab LocalStorage changes
+    // 4. Event listener for cross-tab LocalStorage changes
     const handleStorageUpdate = (e) => {
       if (e.key === 'upb_realtime_analytics_data_v2' || e.key === 'upb_realtime_activity_logs_v2') {
         refreshData();
@@ -54,23 +74,24 @@ export default function AnalyticsSection({ site = {}, links = [], onResetClicks 
     };
     window.addEventListener('storage', handleStorageUpdate);
 
-    // 4. Polling fallback every 1.5 second
+    // 5. Polling fallback every 1.5 second
     const interval = setInterval(refreshData, 1500);
 
-    // 5. Firebase Cloud Firestore real-time subscription
-    const unsubscribe = subscribeToSiteAnalytics(siteId, (updatedStats) => {
+    // 6. Firebase Cloud Firestore real-time subscription
+    const unsubscribe = subscribeToSiteAnalytics(siteId, siteSlug, (updatedStats) => {
       if (updatedStats) {
         setStats({ ...updatedStats });
       }
     });
 
     return () => {
+      if (channel) channel.close();
       window.removeEventListener('upb-analytics-updated', handleCustomUpdate);
       window.removeEventListener('storage', handleStorageUpdate);
       clearInterval(interval);
-      unsubscribe();
+      if (unsubscribe) unsubscribe();
     };
-  }, [siteId]);
+  }, [siteId, siteSlug]);
 
   const currentStats = stats || { views: 0, clicks: {}, devices: { Mobile: 0, Desktop: 0, Tablet: 0 } };
   const totalViews = currentStats.views || 0;
@@ -99,7 +120,7 @@ export default function AnalyticsSection({ site = {}, links = [], onResetClicks 
 
   const handleReset = () => {
     if (window.confirm('Reset semua data statistik kunjungan dan klik untuk microsite ini menjadi 0?')) {
-      resetLocalAnalytics(siteId);
+      resetLocalAnalytics(siteId, siteSlug);
       if (onResetClicks) onResetClicks();
       setStats({ views: 0, clicks: {}, devices: { Mobile: 0, Desktop: 0, Tablet: 0 } });
       setActivityLogs([]);

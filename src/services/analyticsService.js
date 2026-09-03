@@ -17,6 +17,19 @@ import {
 const LOCAL_ANALYTICS_KEY = 'upb_realtime_analytics_data_v2';
 const LOCAL_ACTIVITY_LOGS_KEY = 'upb_realtime_activity_logs_v2';
 
+let sharedBroadcastChannel = null;
+function getBroadcastChannel() {
+  if (typeof BroadcastChannel === 'undefined') return null;
+  if (!sharedBroadcastChannel) {
+    try {
+      sharedBroadcastChannel = new BroadcastChannel('upb_microsites_channel');
+    } catch (e) {
+      return null;
+    }
+  }
+  return sharedBroadcastChannel;
+}
+
 // Deteksi perangkat pengunjung asli
 export function detectDeviceType() {
   if (typeof navigator === 'undefined') return 'Desktop';
@@ -30,19 +43,40 @@ export function detectDeviceType() {
   return 'Desktop';
 }
 
+function getCanonicalKeys(siteId, slug) {
+  const keys = new Set();
+  if (siteId) keys.add(siteId);
+  if (slug) {
+    keys.add(slug);
+    keys.add(`site-${slug}`);
+  }
+  return Array.from(keys);
+}
+
 /**
  * Catat Kunjungan Halaman (Page View) Real-Time
  */
 export async function recordPageView(siteId, slug) {
-  if (!siteId) return;
+  const cleanSiteId = siteId || `site-${slug || 'pmb-utama'}`;
+  const cleanSlug = slug || (siteId ? siteId.replace(/^site-/, '') : 'pmb-utama');
   const device = detectDeviceType();
   const timestamp = new Date().toISOString();
+  const keys = getCanonicalKeys(cleanSiteId, cleanSlug);
 
-  // 1. Simpan ke Local Storage
+  // 1. Simpan ke Local Storage untuk semua alias key
   try {
     const raw = localStorage.getItem(LOCAL_ANALYTICS_KEY);
     const data = raw ? JSON.parse(raw) : {};
-    const siteStats = data[siteId] || {
+    
+    let baseStats = null;
+    for (const k of keys) {
+      if (data[k]) {
+        baseStats = data[k];
+        break;
+      }
+    }
+
+    const siteStats = baseStats || {
       views: 0,
       clicks: {},
       devices: { Mobile: 0, Desktop: 0, Tablet: 0 }
@@ -53,47 +87,74 @@ export async function recordPageView(siteId, slug) {
     siteStats.devices[device] = (siteStats.devices[device] || 0) + 1;
     siteStats.lastViewed = timestamp;
 
-    data[siteId] = siteStats;
+    keys.forEach(k => {
+      data[k] = siteStats;
+    });
+
     localStorage.setItem(LOCAL_ANALYTICS_KEY, JSON.stringify(data));
 
-    // Dispatch global custom event for instant same-tab reactive UI update
+    // Dispatch global custom event
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('upb-analytics-updated', { detail: { siteId } }));
+      window.dispatchEvent(new CustomEvent('upb-analytics-updated', { 
+        detail: { siteId: cleanSiteId, slug: cleanSlug } 
+      }));
     }
-  } catch (e) {
-    console.error('Error saving local page view', e);
-  }
+  } catch (e) {}
 
-  // 2. Simpan ke Firebase Firestore Cloud jika terhubung
+  // 2. Broadcast ke semua tab terbuka (termasuk tab dasbor dari incognito)
+  try {
+    const channel = getBroadcastChannel();
+    if (channel) {
+      channel.postMessage({ 
+        type: 'ANALYTICS_VIEW', 
+        siteId: cleanSiteId, 
+        slug: cleanSlug, 
+        device, 
+        timestamp 
+      });
+    }
+  } catch (e) {}
+
+  // 3. Simpan ke Firebase Firestore Cloud jika database aktif
   if (isFirebaseConfigured() && db) {
     try {
-      const statsDocRef = doc(db, 'microsite_analytics', siteId);
-      await setDoc(statsDocRef, {
-        siteId,
-        slug: slug || siteId,
+      const statsDocRef = doc(db, 'microsite_analytics', cleanSlug);
+      setDoc(statsDocRef, {
+        siteId: cleanSiteId,
+        slug: cleanSlug,
         views: increment(1),
         [`devices.${device}`]: increment(1),
         lastUpdated: serverTimestamp()
-      }, { merge: true });
-    } catch (e) {
-      console.warn('Firestore analytics notice:', e.message);
-    }
+      }, { merge: true }).catch(() => {});
+    } catch (e) {}
   }
 }
 
 /**
  * Catat Klik Tombol (Link Click) Real-Time
  */
-export async function recordLinkClick(siteId, linkId, linkTitle, linkUrl) {
-  if (!siteId || !linkId) return;
+export async function recordLinkClick(siteId, linkId, linkTitle, linkUrl, slug) {
+  if (!linkId) return;
+  const cleanSiteId = siteId || `site-${slug || 'pmb-utama'}`;
+  const cleanSlug = slug || (siteId ? siteId.replace(/^site-/, '') : 'pmb-utama');
   const device = detectDeviceType();
   const timestamp = new Date().toISOString();
+  const keys = getCanonicalKeys(cleanSiteId, cleanSlug);
 
   // 1. Simpan ke Local Storage
   try {
     const raw = localStorage.getItem(LOCAL_ANALYTICS_KEY);
     const data = raw ? JSON.parse(raw) : {};
-    const siteStats = data[siteId] || {
+
+    let baseStats = null;
+    for (const k of keys) {
+      if (data[k]) {
+        baseStats = data[k];
+        break;
+      }
+    }
+
+    const siteStats = baseStats || {
       views: 0,
       clicks: {},
       devices: { Mobile: 0, Desktop: 0, Tablet: 0 }
@@ -101,8 +162,12 @@ export async function recordLinkClick(siteId, linkId, linkTitle, linkUrl) {
 
     siteStats.clicks = siteStats.clicks || {};
     siteStats.clicks[linkId] = (siteStats.clicks[linkId] || 0) + 1;
+    siteStats.totalClicks = (siteStats.totalClicks || 0) + 1;
 
-    data[siteId] = siteStats;
+    keys.forEach(k => {
+      data[k] = siteStats;
+    });
+
     localStorage.setItem(LOCAL_ANALYTICS_KEY, JSON.stringify(data));
 
     // Catat log aktivitas terbaru
@@ -110,102 +175,113 @@ export async function recordLinkClick(siteId, linkId, linkTitle, linkUrl) {
     const logs = rawLogs ? JSON.parse(rawLogs) : [];
     const newLog = {
       id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-      siteId,
+      siteId: cleanSiteId,
+      slug: cleanSlug,
       linkId,
       linkTitle: linkTitle || 'Tautan',
       linkUrl: linkUrl || '#',
       device,
       timestamp
     };
-    const updatedLogs = [newLog, ...logs].slice(0, 50); // Simpan 50 aktivitas klik terakhir
+    const updatedLogs = [newLog, ...logs].slice(0, 50);
     localStorage.setItem(LOCAL_ACTIVITY_LOGS_KEY, JSON.stringify(updatedLogs));
 
-    // Dispatch global custom event for instant same-tab reactive UI update
+    // Dispatch global custom event
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('upb-analytics-updated', { detail: { siteId } }));
+      window.dispatchEvent(new CustomEvent('upb-analytics-updated', { 
+        detail: { siteId: cleanSiteId, slug: cleanSlug, log: newLog } 
+      }));
     }
-  } catch (e) {
-    console.error('Error saving local click', e);
-  }
+  } catch (e) {}
 
-  // 2. Simpan ke Firebase Firestore jika terhubung
+  // 2. Broadcast ke semua tab browser secara instan
+  try {
+    const channel = getBroadcastChannel();
+    if (channel) {
+      channel.postMessage({ 
+        type: 'ANALYTICS_CLICK', 
+        siteId: cleanSiteId, 
+        slug: cleanSlug, 
+        linkId, 
+        linkTitle: linkTitle || 'Tautan',
+        linkUrl: linkUrl || '#',
+        device, 
+        timestamp 
+      });
+    }
+  } catch (e) {}
+
+  // 3. Simpan ke Firebase Firestore jika terhubung
   if (isFirebaseConfigured() && db) {
     try {
-      const statsDocRef = doc(db, 'microsite_analytics', siteId);
-      await setDoc(statsDocRef, {
+      const statsDocRef = doc(db, 'microsite_analytics', cleanSlug);
+      setDoc(statsDocRef, {
         [`clicks.${linkId}`]: increment(1),
         totalClicks: increment(1),
         lastUpdated: serverTimestamp()
-      }, { merge: true });
+      }, { merge: true }).catch(() => {});
 
-      // Catat log ke subcollection events
-      const eventsRef = collection(db, 'microsite_analytics', siteId, 'click_events');
-      await addDoc(eventsRef, {
+      const eventsRef = collection(db, 'microsite_analytics', cleanSlug, 'click_events');
+      addDoc(eventsRef, {
         linkId,
         linkTitle: linkTitle || 'Tautan',
         linkUrl: linkUrl || '#',
         device,
         timestamp: serverTimestamp()
-      });
-    } catch (e) {
-      console.warn('Firestore click log notice:', e.message);
-    }
+      }).catch(() => {});
+    } catch (e) {}
   }
 }
 
 /**
  * Ambil data analitik lokal
  */
-export function getLocalAnalytics(siteId) {
-  if (!siteId) return { views: 0, clicks: {}, devices: { Mobile: 0, Desktop: 0, Tablet: 0 } };
+export function getLocalAnalytics(siteId, slug) {
+  const keys = getCanonicalKeys(siteId, slug);
   try {
     const raw = localStorage.getItem(LOCAL_ANALYTICS_KEY);
     const data = raw ? JSON.parse(raw) : {};
-    return data[siteId] || {
-      views: 0,
-      clicks: {},
-      devices: { Mobile: 0, Desktop: 0, Tablet: 0 }
-    };
-  } catch (e) {
-    return {
-      views: 0,
-      clicks: {},
-      devices: { Mobile: 0, Desktop: 0, Tablet: 0 }
-    };
-  }
+    
+    for (const k of keys) {
+      if (data[k]) return data[k];
+    }
+  } catch (e) {}
+
+  return { views: 0, clicks: {}, devices: { Mobile: 0, Desktop: 0, Tablet: 0 } };
 }
 
 /**
  * Ambil log aktivitas klik real-time lokal
  */
-export function getLocalActivityLogs(siteId) {
+export function getLocalActivityLogs(siteId, slug) {
+  const keys = getCanonicalKeys(siteId, slug);
   try {
     const rawLogs = localStorage.getItem(LOCAL_ACTIVITY_LOGS_KEY);
     const logs = rawLogs ? JSON.parse(rawLogs) : [];
-    if (!siteId) return logs;
-    return logs.filter(l => l.siteId === siteId);
+    if (!siteId && !slug) return logs;
+    return logs.filter(l => keys.includes(l.siteId) || keys.includes(l.slug));
   } catch (e) {
     return [];
   }
 }
 
 /**
- * Subscribe ke update analitik real-time (Lokal + Firestore)
+ * Subscribe ke update analitik real-time (Lokal + Firestore + Broadcast)
  */
-export function subscribeToSiteAnalytics(siteId, onUpdate) {
-  if (!siteId) return () => {};
+export function subscribeToSiteAnalytics(siteId, slug, onUpdate) {
+  const cleanSlug = slug || (siteId ? siteId.replace(/^site-/, '') : 'pmb-utama');
+  
+  if (onUpdate) {
+    onUpdate(getLocalAnalytics(siteId, slug));
+  }
 
-  // 1. Initial local load
-  onUpdate(getLocalAnalytics(siteId));
-
-  // 2. Real-time Firestore sync jika Firebase aktif
   if (isFirebaseConfigured() && db) {
     try {
-      const statsDocRef = doc(db, 'microsite_analytics', siteId);
+      const statsDocRef = doc(db, 'microsite_analytics', cleanSlug);
       const unsubscribe = onSnapshot(statsDocRef, (docSnap) => {
         if (docSnap.exists()) {
           const cloudData = docSnap.data();
-          const local = getLocalAnalytics(siteId);
+          const local = getLocalAnalytics(siteId, slug);
 
           const merged = {
             views: Math.max(local.views || 0, cloudData.views || 0),
@@ -220,40 +296,50 @@ export function subscribeToSiteAnalytics(siteId, onUpdate) {
             }
           };
 
-          onUpdate(merged);
+          if (onUpdate) onUpdate(merged);
         }
-      }, (err) => {
-        console.warn('Firestore real-time subscription notice:', err.message);
-      });
+      }, () => {});
 
       return unsubscribe;
-    } catch (e) {
-      console.warn('Subscription error:', e);
-    }
+    } catch (e) {}
   }
 
   return () => {};
 }
 
 /**
- * Reset Analitik (Mengosongkan statistik kembali ke 0)
+ * Reset Analitik
  */
-export function resetLocalAnalytics(siteId) {
+export function resetLocalAnalytics(siteId, slug) {
+  const keys = getCanonicalKeys(siteId, slug);
   try {
     const raw = localStorage.getItem(LOCAL_ANALYTICS_KEY);
     const data = raw ? JSON.parse(raw) : {};
-    if (siteId) {
-      delete data[siteId];
-    }
+    keys.forEach(k => delete data[k]);
     localStorage.setItem(LOCAL_ANALYTICS_KEY, JSON.stringify(data));
 
     const rawLogs = localStorage.getItem(LOCAL_ACTIVITY_LOGS_KEY);
     const logs = rawLogs ? JSON.parse(rawLogs) : [];
-    const filtered = logs.filter(l => l.siteId !== siteId);
+    const filtered = logs.filter(l => !keys.includes(l.siteId) && !keys.includes(l.slug));
     localStorage.setItem(LOCAL_ACTIVITY_LOGS_KEY, JSON.stringify(filtered));
 
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('upb-analytics-updated', { detail: { siteId } }));
+      window.dispatchEvent(new CustomEvent('upb-analytics-updated', { 
+        detail: { siteId, slug } 
+      }));
     }
   } catch (e) {}
+
+  const cleanSlug = slug || (siteId ? siteId.replace(/^site-/, '') : 'pmb-utama');
+  if (isFirebaseConfigured() && db) {
+    try {
+      const statsDocRef = doc(db, 'microsite_analytics', cleanSlug);
+      setDoc(statsDocRef, {
+        views: 0,
+        clicks: {},
+        totalClicks: 0,
+        devices: { Mobile: 0, Desktop: 0, Tablet: 0 }
+      }).catch(() => {});
+    } catch (e) {}
+  }
 }
