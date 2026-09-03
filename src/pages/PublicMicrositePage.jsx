@@ -4,7 +4,6 @@ import {
   MapPin, 
   Mail, 
   ExternalLink, 
-  Share2, 
   QrCode, 
   ArrowLeft, 
   Globe, 
@@ -39,12 +38,17 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
 
   const activeSlug = sanitizeSlug(initialSite?.slug || 'pmb-utama');
 
-  // Real-time Cloud Firestore & Cross-Tab Subscription
+  // 1. Real-time Cloud Firestore & Cross-Tab Subscription
   useEffect(() => {
     if (!activeSlug) return;
     let isMounted = true;
 
-    // 1. Fetch data terkini dari Firebase Cloud Firestore & Vercel API
+    // Safety timeout: Maximum 600ms loading, then immediately render
+    const safetyTimer = setTimeout(() => {
+      if (isMounted) setIsLoading(false);
+    }, 600);
+
+    // Fetch data terkini dari Firebase Cloud Firestore & Vercel API
     fetchPublishedMicrosite(activeSlug).then((data) => {
       if (isMounted) {
         if (data && data.data) {
@@ -56,7 +60,7 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
       if (isMounted) setIsLoading(false);
     });
 
-    // 2. Real-time Live Listener Firestore
+    // Real-time Live Listener Firestore
     const unsubscribe = subscribeToPublishedMicrosite(activeSlug, (data) => {
       if (isMounted && data && data.data) {
         setCloudSite(data);
@@ -64,7 +68,7 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
       }
     });
 
-    // 3. BroadcastChannel Listener untuk sinkronisasi antar-tab dalam browser yang sama
+    // BroadcastChannel Listener untuk sinkronisasi antar-tab dalam browser yang sama
     let channel;
     try {
       if (typeof BroadcastChannel !== 'undefined') {
@@ -78,9 +82,9 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
           }
         };
       }
-    } catch (e) {}
+    } catch (_e) {}
 
-    // 4. Storage event listener (sync saat admin edit di tab dasbor)
+    // Storage event listener (sync saat admin edit di tab dasbor)
     const handleStorage = (e) => {
       if (e.key === 'upb_multi_microsites_list_v2' && e.newValue) {
         try {
@@ -90,12 +94,12 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
             setCloudSite(found);
             setIsLoading(false);
           }
-        } catch (err) {}
+        } catch (_err) {}
       }
     };
     window.addEventListener('storage', handleStorage);
 
-    // 5. Custom Event listener
+    // Custom Event listener
     const handleCustom = (e) => {
       if (e.detail && e.detail.slug === activeSlug && isMounted) {
         setCloudSite(e.detail);
@@ -103,11 +107,6 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
       }
     };
     window.addEventListener('upb-microsite-published', handleCustom);
-
-    // Safety timeout: Maximum 600ms loading, then immediately render
-    const safetyTimer = setTimeout(() => {
-      if (isMounted) setIsLoading(false);
-    }, 600);
 
     return () => {
       isMounted = false;
@@ -119,7 +118,21 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
     };
   }, [activeSlug]);
 
-  // Loading state while resolving live cloud data
+  // Merge Priority: Cloud Data -> Initial Passed Site -> Matching Official Preset -> Clean Baseline
+  const isOfficialPresetSlug = DEFAULT_MICROSITES_LIST.some(s => s.slug === activeSlug);
+  const matchingPreset = isOfficialPresetSlug ? DEFAULT_MICROSITES_LIST.find(s => s.slug === activeSlug) : null;
+
+  const currentSite = cloudSite || (initialSite?.data ? initialSite : null) || matchingPreset || {};
+  const currentSiteId = currentSite.id || `site-${activeSlug}`;
+
+  // 2. Record page view on mount (Unconditionally declared hook)
+  useEffect(() => {
+    if (activeSlug) {
+      recordPageView(currentSiteId, activeSlug);
+    }
+  }, [activeSlug, currentSiteId]);
+
+  // Loading state while resolving live cloud data (AFTER all hooks are declared)
   if (isLoading && !cloudSite && !initialSite?.data && activeSlug !== 'pmb-utama') {
     return (
       <div className="min-h-screen bg-[#040914] text-white flex flex-col items-center justify-center space-y-4 p-4 font-sans">
@@ -136,11 +149,6 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
     );
   }
 
-  // Merge Priority: Cloud Data -> Initial Passed Site -> Matching Official Preset -> Clean Baseline
-  const isOfficialPresetSlug = DEFAULT_MICROSITES_LIST.some(s => s.slug === activeSlug);
-  const matchingPreset = isOfficialPresetSlug ? DEFAULT_MICROSITES_LIST.find(s => s.slug === activeSlug) : null;
-
-  const currentSite = cloudSite || (initialSite?.data ? initialSite : null) || matchingPreset || {};
   const rawData = currentSite.data || matchingPreset?.data || DEFAULT_MICROSITE_DATA;
 
   const profile = {
@@ -194,16 +202,9 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
     ? normalizeImageUrl(theme.bgImageUrl || theme.bgImage, DEFAULT_BANNER)
     : null;
 
-  // Record page view on mount
-  useEffect(() => {
-    if (activeSlug) {
-      recordPageView(currentSite?.id || `site-${activeSlug}`, activeSlug);
-    }
-  }, [activeSlug, currentSite?.id]);
-
   const handleLinkClick = (link) => {
     if (link && link.id) {
-      recordLinkClick(currentSite?.id || `site-${activeSlug}`, link.id, link.title, link.url);
+      recordLinkClick(currentSiteId, link.id, link.title, link.url);
     }
   };
 
@@ -446,15 +447,16 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
           ) : (
             links
               .filter(link => link.isActive !== false)
-              .map((link) => {
+              .map((link, idx) => {
                 const safeUrl = sanitizeUrl(link.url);
                 const shapeClass = getButtonShapeClass();
                 const variantClass = getButtonVariantClass();
                 const animClass = getAnimationClass(link.animation);
+                const itemKey = link.id || `link-idx-${idx}`;
 
                 return (
                   <a
-                    key={link.id || `link-${Math.random()}`}
+                    key={itemKey}
                     href={safeUrl}
                     target="_blank"
                     rel="noopener noreferrer"
