@@ -11,8 +11,7 @@ import {
   getDocs, 
   collection, 
   deleteDoc, 
-  onSnapshot, 
-  serverTimestamp 
+  onSnapshot 
 } from 'firebase/firestore';
 
 export const RESERVED_SLUGS = [
@@ -36,7 +35,6 @@ export const RESERVED_SLUGS = [
 
 /**
  * Sanitasi Slug URL agar 100% aman (Hanya a-z, 0-9, dan '-')
- * Mencegah XSS, path traversal, injection, karakter aneh, dan reserved paths
  */
 export function sanitizeSlug(raw) {
   if (!raw || typeof raw !== 'string') return '';
@@ -44,15 +42,10 @@ export function sanitizeSlug(raw) {
   let clean = raw
     .toLowerCase()
     .trim()
-    // Ganti karakter aksen / umlaut jika ada
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    // Ganti spasi, garis bawah, dan karakter non-alfanumerik dengan tanda hubung
     .replace(/[^a-z0-9-]/g, '-')
-    // Hilangkan tanda hubung ganda (--- -> -)
     .replace(/-+/g, '-')
-    // Hilangkan tanda hubung di awal dan akhir string
     .replace(/^-+|-+$/g, '')
-    // Batasi panjang maksimum 50 karakter
     .slice(0, 50);
 
   return clean;
@@ -100,21 +93,21 @@ export function validateSlug(slug, existingMicrosites = [], currentSiteId = null
  * Publikasikan Microsite ke Firebase Cloud Firestore (Real-Time Internet Global)
  */
 export async function publishMicrositeToCloud(microsite) {
-  if (!microsite || !microsite.slug) {
-    throw new Error('Data microsite atau slug tidak valid untuk publikasi.');
-  }
+  if (!microsite || !microsite.slug) return null;
 
   const cleanSlug = sanitizeSlug(microsite.slug);
   const nowIso = new Date().toISOString();
 
-  // Data payload aman yang akan dipublikasikan
+  // Bersihkan payload dari undefined agar Firestore tidak menolak dokumen
+  const cleanData = JSON.parse(JSON.stringify(microsite.data || {}));
+
   const payload = {
-    id: microsite.id,
+    id: microsite.id || `site-${cleanSlug}`,
     title: microsite.title || 'Universitas Pelita Bangsa',
     slug: cleanSlug,
     category: microsite.category || 'Pusat Admisi',
     status: 'Active',
-    data: microsite.data || {},
+    data: cleanData,
     updatedAt: nowIso,
     publishedAt: nowIso,
     cloudSyncStatus: 'live'
@@ -124,27 +117,31 @@ export async function publishMicrositeToCloud(microsite) {
   if (isFirebaseConfigured() && db) {
     try {
       const docRef = doc(db, 'published_microsites', cleanSlug);
-      await setDoc(docRef, {
-        ...payload,
-        serverTime: serverTimestamp()
-      }, { merge: true });
+      await setDoc(docRef, payload, { merge: true });
 
       // Catat juga ke index registry untuk lookup cepat
-      const indexRef = doc(db, 'microsites_registry', microsite.id);
+      const indexRef = doc(db, 'microsites_registry', payload.id);
       await setDoc(indexRef, {
-        id: microsite.id,
+        id: payload.id,
         slug: cleanSlug,
-        title: microsite.title,
-        updatedAt: serverTimestamp()
+        title: payload.title,
+        updatedAt: nowIso
       }, { merge: true });
-
     } catch (err) {
-      console.warn('Gagal sinkronisasi ke Firebase Cloud:', err.message);
-      // Fallback tetap berhasil di browser
+      console.warn('Firestore Cloud Save Notice:', err.message);
     }
   }
 
-  // 2. Dispatch custom event agar tab lain di browser ini segera sinkron
+  // 2. Broadcast Channel untuk sinkronisasi instan antar-tab di browser
+  try {
+    if (typeof BroadcastChannel !== 'undefined') {
+      const channel = new BroadcastChannel('upb_microsites_channel');
+      channel.postMessage({ type: 'MICROSITE_UPDATED', slug: cleanSlug, site: payload });
+      channel.close();
+    }
+  } catch (e) {}
+
+  // 3. Dispatch window custom event
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('upb-microsite-published', { detail: payload }));
   }
@@ -167,7 +164,7 @@ export async function fetchPublishedMicrosite(slug) {
         return docSnap.data();
       }
     } catch (err) {
-      console.warn('Error fetching cloud microsite for slug', cleanSlug, err);
+      console.warn('Error fetching cloud microsite for slug', cleanSlug, err.message);
     }
   }
   return null;
@@ -175,7 +172,6 @@ export async function fetchPublishedMicrosite(slug) {
 
 /**
  * Subscribe real-time ke sebuah microsite publik di Firestore
- * Ketika admin mengubah data di dasbor, pengunjung publik langsung menerima update tanpa refresh!
  */
 export function subscribeToPublishedMicrosite(slug, onUpdate) {
   if (!slug || !onUpdate) return () => {};
@@ -189,7 +185,7 @@ export function subscribeToPublishedMicrosite(slug, onUpdate) {
           onUpdate(docSnap.data());
         }
       }, (err) => {
-        console.warn('Firestore snapshot error for slug:', cleanSlug, err.message);
+        console.warn('Firestore snapshot notice for slug:', cleanSlug, err.message);
       });
       return unsubscribe;
     } catch (err) {

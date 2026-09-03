@@ -25,72 +25,99 @@ import { normalizeImageUrl, DEFAULT_LOGO, DEFAULT_BANNER } from '../utils/imageH
 import { DEFAULT_MICROSITE_DATA, DEFAULT_MICROSITES_LIST } from '../data/defaultData';
 import QrCodeModal from '../components/Modals/QrCodeModal';
 import confetti from 'canvas-confetti';
-import { fetchPublishedMicrosite, subscribeToPublishedMicrosite } from '../services/micrositeService';
+import { 
+  fetchPublishedMicrosite, 
+  subscribeToPublishedMicrosite, 
+  sanitizeSlug 
+} from '../services/micrositeService';
 
 export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
-  const [liveSite, setLiveSite] = useState(initialSite);
+  const [cloudSite, setCloudSite] = useState(null);
   const [copied, setCopied] = useState(false);
   const [isQrOpen, setIsQrOpen] = useState(false);
 
-  const site = liveSite || initialSite;
-  const activeSlug = site?.slug || initialSite?.slug || 'pmb-utama';
+  const activeSlug = sanitizeSlug(initialSite?.slug || 'pmb-utama');
 
-  // 1. Real-time Cloud Firestore subscription
+  // Real-time Cloud Firestore & Cross-Tab Subscription
   useEffect(() => {
     if (!activeSlug) return;
+    let isMounted = true;
 
-    // Fetch initial from cloud
-    fetchPublishedMicrosite(activeSlug).then((cloudData) => {
-      if (cloudData && cloudData.data) {
-        setLiveSite(prev => ({ ...(prev || {}), ...cloudData }));
+    // 1. Fetch data terkini dari Firebase Cloud Firestore
+    fetchPublishedMicrosite(activeSlug).then((data) => {
+      if (isMounted && data && data.data) {
+        setCloudSite(data);
       }
     });
 
-    // Real-time live listener for updates across the globe
-    const unsubscribe = subscribeToPublishedMicrosite(activeSlug, (cloudData) => {
-      if (cloudData && cloudData.data) {
-        setLiveSite(prev => ({ ...(prev || {}), ...cloudData }));
+    // 2. Real-time Live Listener Firestore
+    const unsubscribe = subscribeToPublishedMicrosite(activeSlug, (data) => {
+      if (isMounted && data && data.data) {
+        setCloudSite(data);
       }
     });
 
-    return () => unsubscribe();
+    // 3. BroadcastChannel Listener untuk sinkronisasi antar-tab dalam browser yang sama
+    let channel;
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        channel = new BroadcastChannel('upb_microsites_channel');
+        channel.onmessage = (event) => {
+          if (event.data?.type === 'MICROSITE_UPDATED' && event.data?.slug === activeSlug) {
+            if (isMounted && event.data?.site) {
+              setCloudSite(event.data.site);
+            }
+          }
+        };
+      }
+    } catch (e) {}
+
+    return () => {
+      isMounted = false;
+      if (unsubscribe) unsubscribe();
+      if (channel) channel.close();
+    };
   }, [activeSlug]);
 
-  // Schema Hydration with 100% Full Fallback Defaults (Guarantees Content & Buttons are Never Blank)
-  const rawData = site?.data || {};
+  // Merge Priority: Cloud Data -> Initial Passed Site -> Matching Preset -> Default Baseline
+  const currentSite = cloudSite || initialSite || {};
+  const matchingPreset = DEFAULT_MICROSITES_LIST.find(s => s.slug === activeSlug) || DEFAULT_MICROSITES_LIST[0];
   
-  // Find matching preset for extra fallback enrichment if available
-  const matchingPreset = DEFAULT_MICROSITES_LIST.find(s => s.slug === activeSlug)?.data || DEFAULT_MICROSITE_DATA;
+  const rawData = currentSite.data || matchingPreset.data || DEFAULT_MICROSITE_DATA;
 
   const profile = {
     ...DEFAULT_MICROSITE_DATA.profile,
-    ...matchingPreset.profile,
-    universityName: site?.title || matchingPreset.profile.universityName,
-    departmentName: site?.category || matchingPreset.profile.departmentName,
+    ...(matchingPreset.data?.profile || {}),
     ...(rawData.profile || {})
   };
 
   const theme = {
     ...DEFAULT_MICROSITE_DATA.theme,
-    ...matchingPreset.theme,
+    ...(matchingPreset.data?.theme || {}),
     ...(rawData.theme || {})
   };
 
   const buttonStyle = {
     ...DEFAULT_MICROSITE_DATA.buttonStyle,
-    ...matchingPreset.buttonStyle,
+    ...(matchingPreset.data?.buttonStyle || {}),
     ...(rawData.buttonStyle || {})
   };
 
   const socials = {
     ...DEFAULT_MICROSITE_DATA.socials,
-    ...matchingPreset.socials,
+    ...(matchingPreset.data?.socials || {}),
     ...(rawData.socials || {})
   };
 
-  const links = Array.isArray(rawData.links) && rawData.links.length > 0 
-    ? rawData.links 
-    : (Array.isArray(matchingPreset.links) && matchingPreset.links.length > 0 ? matchingPreset.links : DEFAULT_MICROSITE_DATA.links);
+  const links = Array.isArray(rawData.links) && rawData.links.length > 0
+    ? rawData.links
+    : (Array.isArray(matchingPreset.data?.links) && matchingPreset.data.links.length > 0 ? matchingPreset.data.links : DEFAULT_MICROSITE_DATA.links);
+
+  // Hierarchy Penamaan Resmi (Judul dan Nama Departemen, BUKAN Slug)
+  const displayUniversityName = profile.universityName || 'UNIVERSITAS PELITA BANGSA';
+  const displayDepartmentName = profile.departmentName || currentSite.title || matchingPreset.title || 'Portal Informasi Resmi';
+  const displayTagline = profile.tagline || matchingPreset.data?.profile?.tagline || DEFAULT_MICROSITE_DATA.profile.tagline;
+  const displayBio = profile.bio || matchingPreset.data?.profile?.bio || DEFAULT_MICROSITE_DATA.profile.bio;
 
   const avatarUrl = normalizeImageUrl(profile.avatarUrl, DEFAULT_LOGO);
   const bannerUrl = (profile.showBanner !== false && (profile.headerBannerUrl || profile.bannerUrl))
@@ -102,14 +129,14 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
 
   // Record page view on mount
   useEffect(() => {
-    if (site?.id || activeSlug) {
-      recordPageView(site?.id || `site-${activeSlug}`, activeSlug);
+    if (activeSlug) {
+      recordPageView(currentSite?.id || `site-${activeSlug}`, activeSlug);
     }
-  }, [site?.id, activeSlug]);
+  }, [activeSlug, currentSite?.id]);
 
   const handleLinkClick = (link) => {
     if (link && link.id) {
-      recordLinkClick(site?.id || `site-${activeSlug}`, link.id, link.title, link.url);
+      recordLinkClick(currentSite?.id || `site-${activeSlug}`, link.id, link.title, link.url);
     }
   };
 
@@ -124,7 +151,7 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Get background style
+  // Background Style
   const getBackgroundStyle = () => {
     if (theme.bgType === 'image' && bgImageUrl) {
       return {
@@ -265,7 +292,7 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
           <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-white p-1.5 shadow-2xl border-2 border-white/30 overflow-hidden ring-4 ring-black/20 flex items-center justify-center">
             <img 
               src={avatarUrl} 
-              alt={profile.title || profile.universityName || 'UPB'} 
+              alt={displayDepartmentName} 
               className="w-full h-full object-contain rounded-2xl"
               onError={(e) => {
                 e.target.src = DEFAULT_LOGO;
@@ -279,21 +306,25 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
           )}
         </div>
 
-        {/* Profile Information */}
-        <div className="text-center space-y-2 mb-6 w-full">
-          <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white drop-shadow-md">
-            {profile.title || profile.universityName || 'UNIVERSITAS PELITA BANGSA'}
+        {/* Profile Information: Hierarchy Penamaan Resmi (Universitas & Departemen) */}
+        <div className="text-center space-y-1.5 mb-6 w-full">
+          <h1 className="text-lg sm:text-xl font-black tracking-tight text-white drop-shadow-md uppercase">
+            {displayUniversityName}
           </h1>
 
-          {(profile.tagline || profile.departmentName) && (
-            <p className="text-xs sm:text-sm font-semibold text-amber-300 drop-shadow-sm">
-              {profile.tagline || profile.departmentName}
+          <p className="text-base sm:text-lg font-black text-amber-400 drop-shadow-sm">
+            {displayDepartmentName}
+          </p>
+
+          {displayTagline && (
+            <p className="text-xs sm:text-sm font-semibold text-slate-300 drop-shadow-sm">
+              {displayTagline}
             </p>
           )}
 
-          {profile.bio && (
-            <p className="text-xs text-slate-300 max-w-sm mx-auto leading-relaxed drop-shadow-sm">
-              {profile.bio}
+          {displayBio && (
+            <p className="text-xs text-slate-300/90 max-w-sm mx-auto leading-relaxed drop-shadow-sm pt-1">
+              {displayBio}
             </p>
           )}
 
@@ -338,7 +369,7 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
         )}
 
         {/* Interactive Links / Buttons List */}
-        <div className="w-full space-y-3.5 mb-6">
+        <div className="w-full space-y-3 mb-6">
           {links
             .filter(link => link.isActive !== false)
             .map((link) => {

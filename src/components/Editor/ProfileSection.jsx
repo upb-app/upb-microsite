@@ -1,32 +1,28 @@
 import React, { useState } from 'react';
 import { 
-  Building2, 
-  Image, 
-  Upload, 
-  BadgeCheck, 
+  Sparkles, 
   MapPin, 
   Mail, 
-  Sparkles,
-  Eye,
-  EyeOff,
-  Link2,
-  Copy,
-  Check,
+  Upload, 
+  CheckCircle2, 
+  Eye, 
+  Copy, 
+  Check, 
+  Link2, 
+  Radio, 
   ExternalLink,
-  ShieldCheck,
   Globe,
-  Radio,
   AlertCircle
 } from 'lucide-react';
-import confetti from 'canvas-confetti';
 import { normalizeImageUrl, DEFAULT_LOGO, DEFAULT_BANNER } from '../../utils/imageHelper';
+import confetti from 'canvas-confetti';
 import { sanitizeSlug, validateSlug } from '../../services/micrositeService';
 
 const BANNER_PRESETS = [
-  { label: 'Gedung UPB', url: '/img/upb-bg2.JPG' },
-  { label: 'Kampus Pelita Bangsa', url: '/img/upb-bg.JPG' },
-  { label: 'Riset & Teknologi', url: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=1200&auto=format&fit=crop&q=80' },
-  { label: 'Perpustakaan Digital', url: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=1200&auto=format&fit=crop&q=80' },
+  { label: 'Gedung Rektorat & Kampus UPB', url: '/img/upb-bg2.JPG' },
+  { label: 'Wisuda & Kelulusan', url: 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=1200&auto=format&fit=crop&q=80' },
+  { label: 'Laboratorium & Teknologi', url: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=1200&auto=format&fit=crop&q=80' },
+  { label: 'Perpustakaan Digital', url: 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?w=1200&auto=format&fit=crop&q=80' },
   { label: 'Mahasiswa & Festival', url: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=1200&auto=format&fit=crop&q=80' },
 ];
 
@@ -43,12 +39,11 @@ export default function ProfileSection({
   updateProfile,
   site = {},
   updateSiteMeta,
-  microsites = [],
-  onPublishCloud
+  microsites = []
 }) {
   const p = profile || {};
   const currentSlug = site?.slug || p.slug || 'pmb-utama';
-  const currentTitle = site?.title || p.universityName || 'Universitas Pelita Bangsa';
+  const currentTitle = site?.title || p.departmentName || 'Portal PMB & Admisi';
 
   const [copied, setCopied] = useState(false);
   const [slugError, setSlugError] = useState('');
@@ -85,7 +80,7 @@ export default function ProfileSection({
     if (updateSiteMeta) {
       updateSiteMeta('title', val);
     }
-    updateProfile('universityName', val);
+    updateProfile('departmentName', val);
   };
 
   const handleBannerUpload = (e) => {
@@ -118,22 +113,21 @@ export default function ProfileSection({
       
       {/* 0. PENGATURAN IDENTITAS & SLUG URL MICROSITE (CLEAN & SAFE) */}
       <div className="bg-gradient-to-br from-blue-50/80 via-indigo-50/50 to-white dark:from-slate-800/80 dark:via-[#0c1f3d]/60 dark:to-slate-900 border border-blue-200/80 dark:border-blue-500/30 rounded-2xl p-4 sm:p-5 space-y-4 shadow-sm">
-        
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-blue-100 dark:border-white/10 pb-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-blue-200/60 dark:border-white/10">
           <div className="flex items-center gap-2.5">
-            <span className="p-2 bg-blue-600 text-white rounded-xl flex-shrink-0 shadow-sm">
-              <Globe className="w-4 h-4" />
-            </span>
+            <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md flex-shrink-0">
+              <Globe className="w-5 h-5" />
+            </div>
             <div>
               <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
-                <span>Nama & URL Publik Microsite</span>
+                <span>Nama & Slug URL Microsite</span>
                 <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                   <Radio className="w-2.5 h-2.5 animate-pulse text-emerald-500" />
                   Live Publik
                 </span>
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Ubah nama dan slug link resmi yang dapat diakses calon mahasiswa di internet
+                Ubah nama judul dan tautan URL bersih yang dapat diakses calon mahasiswa di internet
               </p>
             </div>
           </div>
@@ -225,128 +219,144 @@ export default function ProfileSection({
                 href={publicUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition"
+                className="p-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/40 dark:hover:bg-blue-900/60 text-blue-600 dark:text-blue-400 transition"
                 title="Buka di Tab Baru"
               >
-                <ExternalLink className="w-3.5 h-3.5 text-blue-500" />
+                <ExternalLink className="w-3.5 h-3.5" />
               </a>
             </div>
           </div>
-
         </div>
-
       </div>
 
-      {/* 1. Header Banner Settings */}
-      <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 space-y-3.5">
+      {/* 1. Header Banner Cover */}
+      <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="p-2 bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-xl">
-              <Image className="w-4 h-4" />
+            <span className="p-2 bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-xl">
+              <Eye className="w-4 h-4" />
             </span>
             <div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Banner Header Kampus</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Gambar lanskap latar bagian atas profil</p>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Banner Sampul Atas</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Gambar lanskap di bagian paling atas microsite</p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => updateProfile('showBanner', !p.showBanner)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
-              p.showBanner 
-                ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/40' 
-                : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
-            }`}
-          >
-            {p.showBanner ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-            {p.showBanner ? 'Tampilkan' : 'Sembunyikan'}
-          </button>
+          
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input 
+              type="checkbox" 
+              checked={p.showBanner !== false} 
+              onChange={(e) => updateProfile('showBanner', e.target.checked)}
+              className="sr-only peer"
+            />
+            <div className="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-blue-600"></div>
+          </label>
         </div>
 
         {p.showBanner !== false && (
-          <div className="space-y-3 pt-1">
-            {/* Preview Banner */}
-            <div className="relative w-full h-28 rounded-xl overflow-hidden bg-slate-200 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 group">
+          <div className="space-y-3">
+            {/* Banner Preview */}
+            <div className="relative w-full h-28 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-900 shadow-inner">
               <img 
                 src={bannerPreview} 
                 alt="Banner Preview" 
                 className="w-full h-full object-cover"
-                onError={(e) => { e.target.src = DEFAULT_BANNER; }}
+                onError={(e) => {
+                  e.target.src = DEFAULT_BANNER;
+                }}
               />
-              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
-                <label className="cursor-pointer px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-lg">
+              <div className="absolute inset-0 bg-black/20" />
+              <div className="absolute bottom-2 right-2">
+                <label className="flex items-center gap-1.5 px-3 py-1.5 bg-black/70 hover:bg-black text-white rounded-lg text-xs font-medium cursor-pointer backdrop-blur-sm transition">
                   <Upload className="w-3.5 h-3.5" />
-                  Ganti Gambar
+                  <span>Ganti File</span>
                   <input type="file" accept="image/*" onChange={handleBannerUpload} className="hidden" />
                 </label>
               </div>
             </div>
 
-            {/* Input URL Manual */}
+            {/* Presets Gallery */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">URL Gambar Banner</label>
-              <input
-                type="text"
-                value={p.headerBannerUrl || p.bannerUrl || ''}
-                onChange={(e) => updateProfile('headerBannerUrl', e.target.value)}
-                placeholder="https://... atau /img/upb-bg.JPG"
-                className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-200 focus:outline-none focus:border-amber-500 transition"
-              />
-            </div>
-
-            {/* Banner Presets */}
-            <div>
-              <span className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Preset Foto Kampus & Fasilitas:</span>
-              <div className="flex flex-wrap gap-1.5">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Pilih Gambar Latar Cepat:</label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {BANNER_PRESETS.map((preset, idx) => (
                   <button
                     key={idx}
                     type="button"
                     onClick={() => updateProfile('headerBannerUrl', preset.url)}
-                    className="px-2.5 py-1 text-[11px] rounded-lg bg-slate-200 dark:bg-slate-700 hover:bg-amber-500/20 dark:hover:bg-amber-500/30 hover:text-amber-700 dark:hover:text-amber-300 text-slate-700 dark:text-slate-300 transition"
+                    className={`text-left p-2 rounded-xl border text-xs transition flex flex-col gap-1 ${
+                      p.headerBannerUrl === preset.url 
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 font-bold' 
+                        : 'border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
+                    }`}
                   >
-                    {preset.label}
+                    <span className="truncate">{preset.label}</span>
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Atau Masukkan URL Gambar Sampul:</label>
+              <input
+                type="text"
+                value={p.headerBannerUrl || ''}
+                onChange={(e) => updateProfile('headerBannerUrl', e.target.value)}
+                placeholder="https://images.unsplash.com/..."
+                className="w-full px-3 py-1.5 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-200 focus:outline-none focus:border-blue-500 transition"
+              />
             </div>
           </div>
         )}
       </div>
 
-      {/* 2. Avatar / Logo Kampus */}
-      <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 space-y-3.5">
+      {/* 2. Logo / Avatar Profile */}
+      <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 space-y-4">
         <div className="flex items-center gap-2">
-          <span className="p-2 bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-xl">
-            <Building2 className="w-4 h-4" />
+          <span className="p-2 bg-purple-500/20 text-purple-600 dark:text-purple-400 rounded-xl">
+            <Sparkles className="w-4 h-4" />
           </span>
           <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Logo & Avatar Profil</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Lambang institusi, logo fakultas, atau foto pimpinan</p>
+            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Logo & Lencana Verifikasi</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Identitas visual utama di tengah microsite</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="relative w-16 h-16 rounded-2xl overflow-hidden bg-white dark:bg-slate-900 border-2 border-slate-300 dark:border-slate-700 flex-shrink-0 shadow-md">
-            <img 
-              src={avatarPreview} 
-              alt="Logo Preview" 
-              className="w-full h-full object-contain p-1"
-              onError={(e) => { e.target.src = DEFAULT_LOGO; }}
-            />
+        <div className="flex flex-col sm:flex-row items-center gap-4">
+          <div className="relative">
+            <div className="w-20 h-20 rounded-2xl bg-white p-1 shadow-md border border-slate-200 dark:border-slate-700 overflow-hidden flex items-center justify-center">
+              <img 
+                src={avatarPreview} 
+                alt="Avatar Preview" 
+                className="w-full h-full object-contain"
+                onError={(e) => {
+                  e.target.src = DEFAULT_LOGO;
+                }}
+              />
+            </div>
+            {p.isVerified !== false && (
+              <div className="absolute -bottom-1 -right-1 p-1 bg-blue-600 text-white rounded-full shadow border border-white">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+              </div>
+            )}
           </div>
 
-          <div className="flex-1 space-y-2">
-            <div className="flex gap-2">
-              <label className="cursor-pointer px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition">
-                <Upload className="w-3.5 h-3.5" />
-                Upload Logo
-                <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
+          <div className="flex-1 space-y-2.5 w-full">
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={p.isVerified !== false}
+                  onChange={(e) => updateProfile('isVerified', e.target.checked)}
+                  className="rounded text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">Tampilkan Centang Biru Resmi (Verified)</span>
               </label>
+
               <button
                 type="button"
                 onClick={() => updateProfile('avatarUrl', DEFAULT_LOGO)}
-                className="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-semibold transition"
+                className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline"
               >
                 Gunakan Logo Resmi UPB
               </button>
@@ -363,7 +373,7 @@ export default function ProfileSection({
         </div>
       </div>
 
-      {/* 3. Teks Informasi Kampus */}
+      {/* 3. Teks Informasi Kampus & Deskripsi */}
       <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 space-y-3.5">
         <div className="flex items-center gap-2">
           <span className="p-2 bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-xl">
@@ -371,19 +381,19 @@ export default function ProfileSection({
           </span>
           <div>
             <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Informasi & Deskripsi</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Unit fakultas, slogan, dan pengantar profil</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Nama universitas, unit fakultas, dan slogan</p>
           </div>
         </div>
 
         <div className="space-y-3">
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Nama Fakultas / Unit / Departemen</label>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Nama Universitas (Induk)</label>
             <input
               type="text"
-              value={p.departmentName || p.tagline || ''}
-              onChange={(e) => updateProfile('departmentName', e.target.value)}
-              placeholder="Fakultas Teknik / Pusat Admisi PMB"
-              className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-200 focus:outline-none focus:border-amber-500 transition"
+              value={p.universityName || 'UNIVERSITAS PELITA BANGSA'}
+              onChange={(e) => updateProfile('universityName', e.target.value)}
+              placeholder="UNIVERSITAS PELITA BANGSA"
+              className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-200 focus:outline-none focus:border-amber-500 transition uppercase font-bold"
             />
           </div>
 
@@ -436,27 +446,6 @@ export default function ProfileSection({
               />
             </div>
           </div>
-
-          {/* Verified Account Switch */}
-          <div className="pt-2 border-t border-slate-200 dark:border-slate-700/60 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <BadgeCheck className="w-4 h-4 text-blue-600" />
-              <div>
-                <span className="text-xs font-bold text-slate-900 dark:text-slate-100 block">Lencana Akun Resmi (Verified Badge)</span>
-                <span className="text-[11px] text-slate-500 dark:text-slate-400">Tampilkan centang biru terverifikasi di samping logo</span>
-              </div>
-            </div>
-            <input
-              type="checkbox"
-              checked={p.isVerified !== false && p.verified !== false}
-              onChange={(e) => {
-                updateProfile('isVerified', e.target.checked);
-                updateProfile('verified', e.target.checked);
-              }}
-              className="w-4 h-4 accent-blue-600 cursor-pointer rounded"
-            />
-          </div>
-
         </div>
       </div>
 
