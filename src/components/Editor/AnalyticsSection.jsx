@@ -10,30 +10,23 @@ import {
   Tablet,
   Radio,
   Clock,
-  ExternalLink,
   Flame,
-  Globe,
-  Info,
-  Play,
-  Plus
+  Info
 } from 'lucide-react';
 import DynamicIcon from '../Common/DynamicIcon';
 import { 
   getLocalAnalytics, 
   getLocalActivityLogs, 
   resetLocalAnalytics,
-  subscribeToSiteAnalytics,
-  recordPageView,
-  recordLinkClick
+  subscribeToSiteAnalytics
 } from '../../services/analyticsService';
 
 export default function AnalyticsSection({ site = {}, links = [], onResetClicks }) {
   const siteId = site?.id || 'site-pmb-utama';
-  const siteSlug = site?.slug || 'pmb-utama';
   const [stats, setStats] = useState(() => getLocalAnalytics(siteId));
   const [activityLogs, setActivityLogs] = useState(() => getLocalActivityLogs(siteId));
 
-  // Subscribe to real-time updates (Local + Cloud Firestore + DOM events)
+  // Subscribe to authentic real-time updates (Cloud Firestore + LocalStorage + Live Events)
   useEffect(() => {
     if (!siteId) return;
 
@@ -42,10 +35,10 @@ export default function AnalyticsSection({ site = {}, links = [], onResetClicks 
       setActivityLogs([...getLocalActivityLogs(siteId)]);
     };
 
-    // 1. Initial local load
+    // 1. Initial load
     refreshData();
 
-    // 2. Event listener for same-window / custom event
+    // 2. Event listener for same-window updates
     const handleCustomUpdate = (e) => {
       if (!e.detail || e.detail.siteId === siteId) {
         refreshData();
@@ -61,10 +54,10 @@ export default function AnalyticsSection({ site = {}, links = [], onResetClicks 
     };
     window.addEventListener('storage', handleStorageUpdate);
 
-    // 4. Polling fallback every 1 second
-    const interval = setInterval(refreshData, 1000);
+    // 4. Polling fallback every 1.5 second
+    const interval = setInterval(refreshData, 1500);
 
-    // 5. Firebase real-time subscription
+    // 5. Firebase Cloud Firestore real-time subscription
     const unsubscribe = subscribeToSiteAnalytics(siteId, (updatedStats) => {
       if (updatedStats) {
         setStats({ ...updatedStats });
@@ -113,20 +106,6 @@ export default function AnalyticsSection({ site = {}, links = [], onResetClicks 
     }
   };
 
-  // Quick Test Simulation Handlers
-  const handleSimulateView = () => {
-    recordPageView(siteId, siteSlug);
-  };
-
-  const handleSimulateClick = (targetLink) => {
-    if (targetLink) {
-      recordLinkClick(siteId, targetLink.id, targetLink.title, targetLink.url);
-    } else if (safeLinks.length > 0) {
-      const first = safeLinks[0];
-      recordLinkClick(siteId, first.id, first.title, first.url);
-    }
-  };
-
   const sortedLinks = [...safeLinks].sort((a, b) => {
     const clicksA = computedClicksMap[a.id] || 0;
     const clicksB = computedClicksMap[b.id] || 0;
@@ -145,7 +124,7 @@ export default function AnalyticsSection({ site = {}, links = [], onResetClicks 
           <div>
             <div className="flex items-center gap-2">
               <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                Statistik & Analitik Real-Time
+                Statistik & Analitik Nyata
               </h3>
               <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                 <Radio className="w-2.5 h-2.5 animate-pulse text-emerald-500" />
@@ -153,23 +132,12 @@ export default function AnalyticsSection({ site = {}, links = [], onResetClicks 
               </span>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Pelacakan interaksi pengunjung dan klik tombol tautan secara nyata
+              Merekam setiap kunjungan dan klik tombol dari pengunjung asli secara otomatis
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Quick Simulation Button for Testing */}
-          <button
-            type="button"
-            onClick={handleSimulateView}
-            className="flex items-center gap-1 px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 dark:text-blue-300 text-xs font-semibold rounded-xl border border-blue-200 dark:border-blue-700/50 transition"
-            title="Simulasikan 1 kunjungan baru"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Tes Kunjungan +1</span>
-          </button>
-
           <button
             type="button"
             onClick={handleReset}
@@ -188,13 +156,13 @@ export default function AnalyticsSection({ site = {}, links = [], onResetClicks 
         <div className="bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-3.5 text-center shadow-xs">
           <div className="flex items-center justify-center gap-1 text-slate-500 dark:text-slate-400 text-xs mb-1 font-semibold">
             <Eye className="w-3.5 h-3.5 text-blue-500" />
-            <span>Kunjungan Live</span>
+            <span>Kunjungan Asli</span>
           </div>
           <span className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-mono">
             {totalViews.toLocaleString('id-ID')}
           </span>
           <span className="text-[10px] text-blue-600 dark:text-blue-400 block mt-0.5 font-bold">
-            Realtime Viewers
+            Total Pengunjung
           </span>
         </div>
 
@@ -208,7 +176,7 @@ export default function AnalyticsSection({ site = {}, links = [], onResetClicks 
             {totalClicks.toLocaleString('id-ID')}
           </span>
           <span className="text-[10px] text-emerald-600 dark:text-emerald-400 block mt-0.5 font-bold">
-            Interaksi Nyata
+            Interaksi Pengunjung
           </span>
         </div>
 
@@ -230,7 +198,7 @@ export default function AnalyticsSection({ site = {}, links = [], onResetClicks 
       {/* Device Breakdown Card */}
       <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 space-y-3">
         <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center justify-between">
-          <span>Distribusi Perangkat Pengunjung Asli</span>
+          <span>Distribusi Perangkat Pengunjung</span>
           <span className="text-[11px] text-slate-400 lowercase font-normal">{totalDeviceViews} sesi terdeteksi</span>
         </h4>
 
@@ -270,7 +238,7 @@ export default function AnalyticsSection({ site = {}, links = [], onResetClicks 
           <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
             Performa Klik Setiap Tombol Tautan (Real Tracking)
           </h4>
-          <span className="text-[11px] text-slate-400">Klik tombol "+" di samping untuk tes langsung</span>
+          <span className="text-[11px] text-slate-400">Diperbarui saat tombol diklik</span>
         </div>
 
         {sortedLinks.length === 0 ? (
@@ -293,20 +261,9 @@ export default function AnalyticsSection({ site = {}, links = [], onResetClicks 
                       <span className="font-bold text-slate-800 dark:text-slate-200 truncate">{link.title}</span>
                     </div>
 
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <div className="text-right">
-                        <span className="font-bold font-mono text-amber-600 dark:text-amber-400">{clicks} klik</span>
-                        <span className="text-slate-400 text-[11px] ml-1">({percentage}%)</span>
-                      </div>
-                      {/* Test click button */}
-                      <button
-                        type="button"
-                        onClick={() => handleSimulateClick(link)}
-                        className="p-1 rounded-lg bg-slate-100 hover:bg-amber-100 dark:bg-slate-800 dark:hover:bg-amber-950/40 text-slate-600 hover:text-amber-600 dark:text-slate-400 dark:hover:text-amber-400 transition"
-                        title="Tes klik tombol ini (+1)"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                      </button>
+                    <div className="text-right flex-shrink-0">
+                      <span className="font-bold font-mono text-amber-600 dark:text-amber-400">{clicks} klik</span>
+                      <span className="text-slate-400 text-[11px] ml-1">({percentage}%)</span>
                     </div>
                   </div>
 
@@ -329,16 +286,16 @@ export default function AnalyticsSection({ site = {}, links = [], onResetClicks 
         <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center justify-between">
           <span className="flex items-center gap-1.5">
             <Flame className="w-3.5 h-3.5 text-amber-500" />
-            Aktivitas Interaksi Pengunjung Terbaru
+            Aktivitas Interaksi Pengunjung Nyata
           </span>
-          <span className="text-[10px] text-slate-400 font-normal">Diperbarui real-time</span>
+          <span className="text-[10px] text-slate-400 font-normal">Live real-time</span>
         </h4>
 
         <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
           {activityLogs.length === 0 ? (
             <div className="text-center py-4 text-xs text-slate-400 flex flex-col items-center justify-center gap-1">
               <Info className="w-4 h-4 opacity-50" />
-              <span>Belum ada aktivitas klik tercatat. Buka halaman publik atau klik tombol `+` di atas untuk tes langsung!</span>
+              <span>Belum ada interaksi tercatat. Statistik akan otomatis bertambah ketika ada pengunjung yang membuka dan mengklik tombol tautan Anda di internet.</span>
             </div>
           ) : (
             activityLogs.map((log) => (
