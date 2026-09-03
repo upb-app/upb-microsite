@@ -233,7 +233,7 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
       <QrCodeModal
         isOpen={isQrOpen}
         onClose={() => setIsQrOpen(false)}
-        data={{ profile }}
+        data={mergedData}
         slug={activeSlug}
       />
 
