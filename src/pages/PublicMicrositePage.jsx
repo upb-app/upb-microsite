@@ -6,11 +6,10 @@ import {
   ExternalLink, 
   Share2, 
   QrCode, 
-  ArrowLeft,
-  Sparkles,
-  Globe,
-  Copy,
-  Check
+  ArrowLeft, 
+  Globe, 
+  Copy, 
+  Check 
 } from 'lucide-react';
 import DynamicIcon from '../components/Common/DynamicIcon';
 import { 
@@ -23,7 +22,9 @@ import {
 import { sanitizeUrl } from '../utils/security';
 import { recordPageView, recordLinkClick } from '../services/analyticsService';
 import { normalizeImageUrl, DEFAULT_LOGO, DEFAULT_BANNER } from '../utils/imageHelper';
+import { DEFAULT_MICROSITE_DATA, DEFAULT_MICROSITES_LIST } from '../data/defaultData';
 import QrCodeModal from '../components/Modals/QrCodeModal';
+import confetti from 'canvas-confetti';
 import { fetchPublishedMicrosite, subscribeToPublishedMicrosite } from '../services/micrositeService';
 
 export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
@@ -32,20 +33,20 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
   const [isQrOpen, setIsQrOpen] = useState(false);
 
   const site = liveSite || initialSite;
-  const activeSlug = site?.slug || initialSite?.slug;
+  const activeSlug = site?.slug || initialSite?.slug || 'pmb-utama';
 
-  // Real-time Cloud Firestore subscription: when admin publishes, all visitors across the globe update live
+  // 1. Real-time Cloud Firestore subscription
   useEffect(() => {
     if (!activeSlug) return;
 
-    // 1. Initial fetch from Cloud
+    // Fetch initial from cloud
     fetchPublishedMicrosite(activeSlug).then((cloudData) => {
       if (cloudData && cloudData.data) {
         setLiveSite(prev => ({ ...(prev || {}), ...cloudData }));
       }
     });
 
-    // 2. Real-time live listener
+    // Real-time live listener for updates across the globe
     const unsubscribe = subscribeToPublishedMicrosite(activeSlug, (cloudData) => {
       if (cloudData && cloudData.data) {
         setLiveSite(prev => ({ ...(prev || {}), ...cloudData }));
@@ -55,12 +56,41 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
     return () => unsubscribe();
   }, [activeSlug]);
 
-  const data = site?.data || {};
-  const profile = data.profile || {};
-  const links = data.links || [];
-  const theme = data.theme || {};
-  const buttonStyle = data.buttonStyle || {};
-  const socials = data.socials || {};
+  // Schema Hydration with 100% Full Fallback Defaults (Guarantees Content & Buttons are Never Blank)
+  const rawData = site?.data || {};
+  
+  // Find matching preset for extra fallback enrichment if available
+  const matchingPreset = DEFAULT_MICROSITES_LIST.find(s => s.slug === activeSlug)?.data || DEFAULT_MICROSITE_DATA;
+
+  const profile = {
+    ...DEFAULT_MICROSITE_DATA.profile,
+    ...matchingPreset.profile,
+    universityName: site?.title || matchingPreset.profile.universityName,
+    departmentName: site?.category || matchingPreset.profile.departmentName,
+    ...(rawData.profile || {})
+  };
+
+  const theme = {
+    ...DEFAULT_MICROSITE_DATA.theme,
+    ...matchingPreset.theme,
+    ...(rawData.theme || {})
+  };
+
+  const buttonStyle = {
+    ...DEFAULT_MICROSITE_DATA.buttonStyle,
+    ...matchingPreset.buttonStyle,
+    ...(rawData.buttonStyle || {})
+  };
+
+  const socials = {
+    ...DEFAULT_MICROSITE_DATA.socials,
+    ...matchingPreset.socials,
+    ...(rawData.socials || {})
+  };
+
+  const links = Array.isArray(rawData.links) && rawData.links.length > 0 
+    ? rawData.links 
+    : (Array.isArray(matchingPreset.links) && matchingPreset.links.length > 0 ? matchingPreset.links : DEFAULT_MICROSITE_DATA.links);
 
   const avatarUrl = normalizeImageUrl(profile.avatarUrl, DEFAULT_LOGO);
   const bannerUrl = (profile.showBanner !== false && (profile.headerBannerUrl || profile.bannerUrl))
@@ -72,22 +102,22 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
 
   // Record page view on mount
   useEffect(() => {
-    if (site?.id) {
-      recordPageView(site.id, site.slug);
+    if (site?.id || activeSlug) {
+      recordPageView(site?.id || `site-${activeSlug}`, activeSlug);
     }
-  }, [site?.id, site?.slug]);
+  }, [site?.id, activeSlug]);
 
   const handleLinkClick = (link) => {
-    if (site?.id && link.id) {
-      recordLinkClick(site.id, link.id, link.title, link.url);
+    if (link && link.id) {
+      recordLinkClick(site?.id || `site-${activeSlug}`, link.id, link.title, link.url);
     }
   };
 
   const handleCopyLink = () => {
-    const origin = window.location.origin.includes('localhost') 
+    const origin = typeof window !== 'undefined' && window.location.origin.includes('localhost') 
       ? window.location.origin 
       : 'https://pmbupb.site';
-    const cleanUrl = `${origin}/${site?.slug || 'pmb-utama'}`;
+    const cleanUrl = `${origin}/${activeSlug}`;
     navigator.clipboard.writeText(cleanUrl);
     setCopied(true);
     confetti({ particleCount: 40, spread: 50, origin: { y: 0.8 } });
@@ -124,13 +154,15 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
 
   // Button shape classes
   const getButtonShapeClass = () => {
-    switch (buttonStyle.shape || buttonStyle.rounded) {
+    const shape = buttonStyle.shape || buttonStyle.rounded || 'rounded-xl';
+    switch (shape) {
       case 'rounded-full':
       case 'pill': return 'rounded-full';
       case 'rounded-none':
       case 'square': return 'rounded-none';
       case 'rounded-lg': return 'rounded-lg';
-      default: return 'rounded-2xl';
+      case 'rounded-2xl': return 'rounded-2xl';
+      default: return 'rounded-xl';
     }
   };
 
@@ -181,7 +213,7 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
         />
       )}
 
-      {/* Floating Top Bar (Public Navigation & Sharing) */}
+      {/* Floating Top Bar */}
       <header className="relative z-20 max-w-lg mx-auto w-full px-4 pt-4 flex items-center justify-between">
         <button
           onClick={onGoHome}
@@ -240,7 +272,7 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
               }}
             />
           </div>
-          {(profile.verified || profile.isVerified) && (
+          {(profile.verified !== false && profile.isVerified !== false) && (
             <div className="absolute -bottom-1 -right-1 p-1.5 bg-blue-600 text-white rounded-full shadow-md border-2 border-slate-900" title="Terverifikasi Resmi">
               <CheckCircle2 className="w-4 h-4" />
             </div>
@@ -250,7 +282,7 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
         {/* Profile Information */}
         <div className="text-center space-y-2 mb-6 w-full">
           <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white drop-shadow-md">
-            {profile.title || profile.universityName || 'Universitas Pelita Bangsa'}
+            {profile.title || profile.universityName || 'UNIVERSITAS PELITA BANGSA'}
           </h1>
 
           {(profile.tagline || profile.departmentName) && (
@@ -265,7 +297,7 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
             </p>
           )}
 
-          {/* Location & Badge Tags */}
+          {/* Location & Email Tags */}
           <div className="flex items-center justify-center gap-2 flex-wrap pt-1 text-[11px]">
             {profile.location && (
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-black/40 backdrop-blur-sm border border-white/15 text-slate-200">
@@ -317,7 +349,7 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
 
               return (
                 <a
-                  key={link.id}
+                  key={link.id || `link-${Math.random()}`}
                   href={safeUrl}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -334,7 +366,7 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
                     <div className="text-left min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-extrabold text-sm tracking-tight truncate">
-                          {link.title}
+                          {link.title || 'Tautan Informasi'}
                         </span>
                         {link.badge && (
                           <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 shadow-xs">
@@ -342,9 +374,9 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
                           </span>
                         )}
                       </div>
-                      {link.description && (
+                      {(link.subtitle || link.description) && (
                         <p className="text-xs opacity-80 mt-0.5 truncate max-w-[240px] sm:max-w-xs">
-                          {link.description}
+                          {link.subtitle || link.description}
                         </p>
                       )}
                     </div>
@@ -357,7 +389,7 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
         </div>
 
         {/* Bottom Socials */}
-        {socials.position !== 'top' && (
+        {(socials.position === 'bottom' || socials.position === 'both' || !socials.position) && (
           <div className="flex items-center justify-center gap-2.5 mb-6 flex-wrap">
             {Object.entries(socials)
               .filter(([key, val]) => key !== 'position' && val && val.trim() !== '')
@@ -378,24 +410,21 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
 
       </main>
 
-      {/* Official Footer */}
-      <footer className="relative z-10 py-4 border-t border-white/10 text-center text-xs text-slate-400 max-w-md mx-auto w-full px-4">
-        <p className="font-semibold text-slate-300">
-          © {new Date().getFullYear()} Universitas Pelita Bangsa
-        </p>
-        <p className="text-[11px] text-slate-400 mt-0.5">
-          Kampus Berbasis Entrepreneur & Teknologi
+      {/* Public Footer */}
+      <footer className="relative z-10 w-full py-4 text-center text-xs text-slate-400/80 border-t border-white/10 bg-black/30 backdrop-blur-sm">
+        <p className="font-semibold tracking-wide">
+          © {new Date().getFullYear()} Universitas Pelita Bangsa. Hak Cipta Dilindungi.
         </p>
       </footer>
 
-      {/* QR Code Modal for Public View */}
-      {isQrOpen && (
-        <QrCodeModal 
-          isOpen={isQrOpen} 
-          onClose={() => setIsQrOpen(false)} 
-          data={data}
-        />
-      )}
+      {/* QR Code Modal */}
+      <QrCodeModal
+        isOpen={isQrOpen}
+        onClose={() => setIsQrOpen(false)}
+        data={{ profile }}
+        slug={activeSlug}
+      />
+
     </div>
   );
 }

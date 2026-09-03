@@ -275,14 +275,21 @@ function MainAppContent() {
     }));
   };
 
-  // Update site title or slug metadata directly
+  // Update site title or slug metadata directly (atomic update across meta & profile)
   const updateSiteMeta = (field, value) => {
     setMicrosites(prev => prev.map(site => {
       if (site.id === currentMicrosite.id) {
         const modifiedSite = {
           ...site,
           [field]: value,
-          updatedAt: new Date().toISOString().split('T')[0]
+          updatedAt: new Date().toISOString().split('T')[0],
+          data: {
+            ...(site.data || DEFAULT_MICROSITE_DATA),
+            profile: {
+              ...(site.data?.profile || DEFAULT_MICROSITE_DATA.profile),
+              [field === 'title' ? 'universityName' : field]: value
+            }
+          }
         };
         // Auto-sync to Firebase Cloud in background
         publishMicrositeToCloud(modifiedSite).catch(() => {});
@@ -298,7 +305,15 @@ function MainAppContent() {
         const modifiedSite = {
           ...site,
           ...updates,
-          updatedAt: new Date().toISOString().split('T')[0]
+          updatedAt: new Date().toISOString().split('T')[0],
+          data: {
+            ...(site.data || DEFAULT_MICROSITE_DATA),
+            profile: {
+              ...(site.data?.profile || DEFAULT_MICROSITE_DATA.profile),
+              universityName: updates.title || site.title,
+              slug: updates.slug || site.slug
+            }
+          }
         };
         publishMicrositeToCloud(modifiedSite).catch(() => {});
         return modifiedSite;
@@ -309,9 +324,25 @@ function MainAppContent() {
 
   // Section updaters
   const updateProfile = (field, value) => {
-    updateActiveSiteData(prev => ({
-      ...prev,
-      profile: { ...prev.profile, [field]: value }
+    setMicrosites(prev => prev.map(site => {
+      if (site.id === currentMicrosite.id) {
+        const modifiedSite = {
+          ...site,
+          title: field === 'universityName' ? value : site.title,
+          slug: field === 'slug' ? value : site.slug,
+          updatedAt: new Date().toISOString().split('T')[0],
+          data: {
+            ...(site.data || DEFAULT_MICROSITE_DATA),
+            profile: {
+              ...(site.data?.profile || DEFAULT_MICROSITE_DATA.profile),
+              [field]: value
+            }
+          }
+        };
+        publishMicrositeToCloud(modifiedSite).catch(() => {});
+        return modifiedSite;
+      }
+      return site;
     }));
   };
 
@@ -468,8 +499,40 @@ function MainAppContent() {
   // Accessible to anyone without login or dashboard chrome
   // ----------------------------------------------------------------------
   if (route === 'public-site') {
-    const publicSlug = getPublicSlug();
-    const publicSite = microsites.find(s => s.slug === publicSlug) || (publicSlug === 'pmb-utama' ? currentMicrosite : null) || { slug: publicSlug };
+    const publicSlug = getPublicSlug() || 'pmb-utama';
+    let publicSite = microsites.find(s => s.slug === publicSlug);
+
+    if (!publicSite) {
+      publicSite = DEFAULT_MICROSITES_LIST.find(s => s.slug === publicSlug);
+    }
+
+    if (!publicSite && (publicSlug === 'pmb-utama' || publicSlug === '')) {
+      publicSite = currentMicrosite;
+    }
+
+    if (!publicSite) {
+      const prettyTitle = publicSlug
+        .split('-')
+        .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ');
+
+      publicSite = {
+        id: `site-${publicSlug}`,
+        title: prettyTitle,
+        slug: publicSlug,
+        category: 'Portal Resmi',
+        data: {
+          ...DEFAULT_MICROSITE_DATA,
+          profile: {
+            ...DEFAULT_MICROSITE_DATA.profile,
+            universityName: prettyTitle,
+            departmentName: 'Portal Informasi & Layanan Terpadu UPB',
+            slug: publicSlug
+          },
+          links: DEFAULT_MICROSITE_DATA.links
+        }
+      };
+    }
 
     return (
       <PublicMicrositePage 
