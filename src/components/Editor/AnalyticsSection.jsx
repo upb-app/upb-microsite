@@ -77,16 +77,13 @@ export default function AnalyticsSection({ site = {}, links = [], onResetClicks 
     };
     window.addEventListener('storage', handleStorageUpdate);
 
-    // 5. Polling fallback every 1.5 second
-    const interval = setInterval(refreshData, 1500);
-
-    // 6. Firebase Cloud Firestore real-time subscription (Metrics + Live Click Events)
+    // 5. Firebase Cloud Firestore real-time subscription (Metrics + Live Click Events)
     const unsubscribe = subscribeToSiteAnalytics(
       siteId, 
       siteSlug, 
       (updatedStats) => {
         if (updatedStats) {
-          setStats({ ...updatedStats });
+          setStats(prev => ({ ...prev, ...updatedStats }));
         }
       },
       (updatedLogs) => {
@@ -100,7 +97,6 @@ export default function AnalyticsSection({ site = {}, links = [], onResetClicks 
       if (channel) channel.close();
       window.removeEventListener('upb-analytics-updated', handleCustomUpdate);
       window.removeEventListener('storage', handleStorageUpdate);
-      clearInterval(interval);
       if (unsubscribe) unsubscribe();
     };
   }, [siteId, siteSlug]);

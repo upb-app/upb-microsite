@@ -321,6 +321,15 @@ export function subscribeToSiteAnalytics(siteId, slug, onStatsUpdate, onLogsUpda
             }
           };
 
+          // Update local cache so getLocalAnalytics always has the latest Cloud truth
+          try {
+            const raw = localStorage.getItem(LOCAL_ANALYTICS_KEY);
+            const localData = raw ? JSON.parse(raw) : {};
+            const keys = getCanonicalKeys(siteId, slug);
+            keys.forEach(k => { localData[k] = merged; });
+            localStorage.setItem(LOCAL_ANALYTICS_KEY, JSON.stringify(localData));
+          } catch (e) {}
+
           if (onStatsUpdate) onStatsUpdate(merged);
         }
       }, () => {});
@@ -345,6 +354,10 @@ export function subscribeToSiteAnalytics(siteId, slug, onStatsUpdate, onLogsUpda
         
         events.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
         if (onLogsUpdate && events.length > 0) {
+          // Update local activity logs cache
+          try {
+            localStorage.setItem(LOCAL_ACTIVITY_LOGS_KEY, JSON.stringify(events.slice(0, 50)));
+          } catch (e) {}
           onLogsUpdate(events.slice(0, 50));
         }
       }, () => {});
