@@ -204,6 +204,14 @@ function MainAppContent() {
 
     window.addEventListener('popstate', checkRoute);
     window.addEventListener('hashchange', checkRoute);
+
+    // Auto-sync all current microsites to Firestore Cloud in background
+    if (microsites && microsites.length > 0) {
+      microsites.forEach(site => {
+        publishMicrositeToCloud(site).catch(() => {});
+      });
+    }
+
     return () => {
       window.removeEventListener('popstate', checkRoute);
       window.removeEventListener('hashchange', checkRoute);

@@ -33,8 +33,7 @@ import {
 
 export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
   const [cloudSite, setCloudSite] = useState(null);
-  const [isLoading, setIsLoading] = useState(!initialSite?.data);
-  const [isDeleted, setIsDeleted] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [isQrOpen, setIsQrOpen] = useState(false);
 
@@ -45,19 +44,16 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
     if (!activeSlug) return;
     let isMounted = true;
 
-    // Safety timeout: Maximum 600ms loading, then immediately render
+    // Safety timeout: Maximum 800ms loading, then render whatever data is resolved
     const safetyTimer = setTimeout(() => {
       if (isMounted) setIsLoading(false);
-    }, 600);
+    }, 800);
 
     // Fetch data terkini dari Firebase Cloud Firestore & Universal Decoder
     fetchPublishedMicrosite(activeSlug).then((data) => {
       if (isMounted) {
         if (data && data.data) {
           setCloudSite(data);
-          setIsDeleted(false);
-        } else if (!data && !initialSite?.data && !DEFAULT_MICROSITES_LIST.some(s => s.slug === activeSlug)) {
-          setIsDeleted(true);
         }
         setIsLoading(false);
       }
@@ -65,25 +61,13 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
       if (isMounted) setIsLoading(false);
     });
 
-    // Real-time Live Listener Firestore (Update & Deletion Handler)
-    const unsubscribe = subscribeToPublishedMicrosite(
-      activeSlug, 
-      (data) => {
-        if (isMounted && data && data.data) {
-          setCloudSite(data);
-          setIsDeleted(false);
-          setIsLoading(false);
-        }
-      },
-      () => {
-        // Dokumen dihapus dari Firestore
-        if (isMounted) {
-          setCloudSite(null);
-          setIsDeleted(true);
-          setIsLoading(false);
-        }
+    // Real-time Live Listener Firestore
+    const unsubscribe = subscribeToPublishedMicrosite(activeSlug, (data) => {
+      if (isMounted && data && data.data) {
+        setCloudSite(data);
+        setIsLoading(false);
       }
-    );
+    });
 
     // BroadcastChannel Listener untuk sinkronisasi antar-tab dalam browser yang sama
     let channel;
@@ -94,14 +78,12 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
           if (event.data?.type === 'MICROSITE_UPDATED' && event.data?.slug === activeSlug) {
             if (isMounted && event.data?.site) {
               setCloudSite(event.data.site);
-              setIsDeleted(false);
               setIsLoading(false);
             }
           }
           if (event.data?.type === 'MICROSITE_DELETED' && event.data?.slug === activeSlug) {
             if (isMounted) {
               setCloudSite(null);
-              setIsDeleted(true);
               setIsLoading(false);
             }
           }
@@ -109,7 +91,7 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
       }
     } catch (_e) {}
 
-    // Storage event listener (sync saat admin edit / delete di tab dasbor)
+    // Storage event listener (sync saat admin edit di tab dasbor)
     const handleStorage = (e) => {
       if (e.key === 'upb_multi_microsites_list_v2' && e.newValue) {
         try {
@@ -117,11 +99,6 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
           const found = list.find(s => s.slug === activeSlug);
           if (found && isMounted) {
             setCloudSite(found);
-            setIsDeleted(false);
-            setIsLoading(false);
-          } else if (!found && !DEFAULT_MICROSITES_LIST.some(s => s.slug === activeSlug) && isMounted) {
-            setCloudSite(null);
-            setIsDeleted(true);
             setIsLoading(false);
           }
         } catch (_err) {}
@@ -133,20 +110,10 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
     const handleCustom = (e) => {
       if (e.detail && e.detail.slug === activeSlug && isMounted) {
         setCloudSite(e.detail);
-        setIsDeleted(false);
         setIsLoading(false);
       }
     };
     window.addEventListener('upb-microsite-published', handleCustom);
-
-    const handleCustomDelete = (e) => {
-      if (e.detail && e.detail.slug === activeSlug && isMounted) {
-        setCloudSite(null);
-        setIsDeleted(true);
-        setIsLoading(false);
-      }
-    };
-    window.addEventListener('upb-microsite-deleted', handleCustomDelete);
 
     return () => {
       isMounted = false;
@@ -155,7 +122,6 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
       if (channel) channel.close();
       window.removeEventListener('storage', handleStorage);
       window.removeEventListener('upb-microsite-published', handleCustom);
-      window.removeEventListener('upb-microsite-deleted', handleCustomDelete);
     };
   }, [activeSlug]);
 
@@ -168,18 +134,21 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
 
   // 2. Record page view on mount (Unconditionally declared hook)
   useEffect(() => {
-    if (activeSlug && !isDeleted) {
+    if (activeSlug) {
       recordPageView(currentSiteId, activeSlug);
     }
-  }, [activeSlug, currentSiteId, isDeleted]);
+  }, [activeSlug, currentSiteId]);
 
-  // If deleted or not found, render 404 Error Page immediately
-  if (isDeleted || (!isLoading && !cloudSite && !initialSite?.data && !matchingPreset && activeSlug !== 'pmb-utama')) {
-    return <NotFoundPage onGoHome={onGoHome} />;
-  }
+  // Check if site data is available
+  const hasValidData = Boolean(
+    cloudSite?.data || 
+    initialSite?.data || 
+    matchingPreset?.data || 
+    (typeof localStorage !== 'undefined' && localStorage.getItem(`upb_site_slug_${activeSlug}`))
+  );
 
   // Loading state while resolving live cloud data
-  if (isLoading && !cloudSite && !initialSite?.data && activeSlug !== 'pmb-utama') {
+  if (isLoading && !hasValidData && activeSlug !== 'pmb-utama') {
     return (
       <div className="min-h-screen bg-[#040914] text-white flex flex-col items-center justify-center space-y-4 p-4 font-sans">
         <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-blue-700 via-blue-600 to-indigo-600 p-0.5 shadow-2xl animate-pulse">
@@ -193,6 +162,11 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
         </div>
       </div>
     );
+  }
+
+  // If loading finished and NO data found anywhere, render 404
+  if (!isLoading && !hasValidData && activeSlug !== 'pmb-utama') {
+    return <NotFoundPage onGoHome={onGoHome} />;
   }
 
   const rawData = currentSite.data || matchingPreset?.data || DEFAULT_MICROSITE_DATA;
