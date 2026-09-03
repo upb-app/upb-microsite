@@ -104,8 +104,14 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
     };
     window.addEventListener('upb-microsite-published', handleCustom);
 
+    // Safety timeout: Maximum 600ms loading, then immediately render
+    const safetyTimer = setTimeout(() => {
+      if (isMounted) setIsLoading(false);
+    }, 600);
+
     return () => {
       isMounted = false;
+      clearTimeout(safetyTimer);
       if (unsubscribe) unsubscribe();
       if (channel) channel.close();
       window.removeEventListener('storage', handleStorage);
