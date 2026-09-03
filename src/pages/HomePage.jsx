@@ -269,6 +269,7 @@ export default function HomePage() {
             </button>
 
 
+
             {/* Direct SIBARA Registration CTA */}
             <a
               href="https://sibara.pelitabangsa.ac.id/"

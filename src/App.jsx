@@ -38,6 +38,7 @@ const RESERVED_PATHS = [
   'asup',
   'login',
   'admin',
+  '404',
   'assets',
   'img',
   'favicon.ico',
@@ -46,7 +47,7 @@ const RESERVED_PATHS = [
 ];
 
 function MainAppContent() {
-  const { currentUser, isSuperadmin } = useAuth();
+  const { currentUser, isSuperadmin, authLoading } = useAuth();
   const { isDark } = useTheme();
 
   // Multi-microsites state
@@ -147,6 +148,12 @@ function MainAppContent() {
     );
   };
 
+  const is404Route = () => {
+    const path = window.location.pathname.toLowerCase();
+    const hash = window.location.hash.toLowerCase();
+    return path === '/404' || hash.includes('404');
+  };
+
   const getPublicSlug = () => {
     const path = window.location.pathname;
     const hash = window.location.hash;
@@ -154,7 +161,7 @@ function MainAppContent() {
     // 1. Check legacy '/s/[slug]' (e.g. '/s/fakultas-teknik')
     if (path.startsWith('/s/')) {
       const segment = path.replace('/s/', '').split('?')[0].split('/')[0].trim().toLowerCase();
-      if (segment && !['dasbor', 'dashboard', 'asup', 'login'].includes(segment)) {
+      if (segment && !['dasbor', 'dashboard', 'asup', 'login', '404'].includes(segment)) {
         return segment;
       }
     }
@@ -168,7 +175,7 @@ function MainAppContent() {
     // 3. Check hash format '#/s/[slug]' or '#/[slug]'
     if (hash.startsWith('#/s/')) {
       const segment = hash.replace('#/s/', '').split('?')[0].split('/')[0].trim().toLowerCase();
-      if (segment && !['dasbor', 'dashboard', 'asup', 'login'].includes(segment)) {
+      if (segment && !['dasbor', 'dashboard', 'asup', 'login', '404'].includes(segment)) {
         return segment;
       }
     } else if (hash.startsWith('#/')) {
@@ -182,13 +189,14 @@ function MainAppContent() {
   };
 
   const determineRoute = () => {
+    if (is404Route()) return '404';
     if (isLoginRoute()) return 'login';
     if (isDashboardRoute()) return 'dashboard';
     if (getPublicSlug()) return 'public-site';
     return 'home';
   };
 
-  // Route State: 'home' | 'dashboard' | 'login' | 'public-site'
+  // Route State: 'home' | 'dashboard' | 'login' | 'public-site' | '404'
   const [route, setRoute] = useState(determineRoute);
 
   // Listen for browser navigation changes
@@ -227,6 +235,13 @@ function MainAppContent() {
         window.location.hash = `/${slug}`;
       }
       setRoute('public-site');
+    } else if (newRoute === '404') {
+      if (window.history.pushState) {
+        window.history.pushState(null, '', '/404');
+      } else {
+        window.location.hash = '/404';
+      }
+      setRoute('404');
     } else {
       if (window.history.pushState) {
         window.history.pushState(null, '', '/');
@@ -393,21 +408,35 @@ function MainAppContent() {
   };
 
   // ----------------------------------------------------------------------
-  // SCENARIO 0: STANDALONE CLEAN PUBLIC MICROSITE VIEW (`/[slug]`)
-  // Accessible to anyone without login or dashboard chrome
+  // SCENARIO 0: LOADING AUTHENTICATION STATE
+  // ----------------------------------------------------------------------
+  if (authLoading) {
+    return (
+      <div className={`min-h-screen flex flex-col items-center justify-center p-4 font-sans ${
+        isDark ? 'bg-[#040914] text-slate-100' : 'bg-[#f4f7fb] text-slate-900'
+      }`}>
+        <div className="w-10 h-10 border-3 border-blue-600 border-t-transparent rounded-full animate-spin mb-3"></div>
+        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Memverifikasi Sesi PMB UPB...</p>
+      </div>
+    );
+  }
+
+  // ----------------------------------------------------------------------
+  // SCENARIO 1: EXPLICIT 404 NOT FOUND PAGE
+  // ----------------------------------------------------------------------
+  if (route === '404') {
+    return <NotFoundPage onGoHome={() => navigateTo('home')} />;
+  }
+
+  // ----------------------------------------------------------------------
+  // SCENARIO 2: STANDALONE CLEAN PUBLIC MICROSITE VIEW (`/[slug]`)
   // ----------------------------------------------------------------------
   if (route === 'public-site') {
     const publicSlug = getPublicSlug();
     const publicSite = microsites.find(s => s.slug === publicSlug);
 
-    // If slug does not exist, return 404 page
     if (!publicSite) {
-      return (
-        <NotFoundPage 
-          path={`/${publicSlug || ''}`} 
-          onGoHome={() => navigateTo('home')} 
-        />
-      );
+      return <NotFoundPage onGoHome={() => navigateTo('home')} />;
     }
 
     return (
@@ -419,7 +448,7 @@ function MainAppContent() {
   }
 
   // ----------------------------------------------------------------------
-  // SCENARIO 1: ACCESSED VIA '/' (HOME PMB PORTAL)
+  // SCENARIO 3: ACCESSED VIA '/' (HOME PMB PORTAL)
   // ----------------------------------------------------------------------
   if (route === 'home') {
     return (
@@ -438,17 +467,16 @@ function MainAppContent() {
           isOpen={isQrModalOpen}
           onClose={() => setIsQrModalOpen(false)}
           data={previewData}
-          slug={currentMicrosite.slug}
         />
       </div>
     );
   }
 
   // ----------------------------------------------------------------------
-  // SCENARIO 2: ACCESSED VIA '/s/asup' (DEDICATED LOGIN PORTAL)
+  // SCENARIO 4: ACCESSED VIA '/s/asup' (DEDICATED SECURE LOGIN ROUTE)
   // ----------------------------------------------------------------------
   if (route === 'login') {
-    // If user is already authenticated, redirect straight to dashboard
+    // If user is already authenticated, redirect straight to /s/dasbor
     if (currentUser) {
       navigateTo('dashboard');
       return null;
@@ -483,20 +511,15 @@ function MainAppContent() {
   }
 
   // ----------------------------------------------------------------------
-  // SCENARIO 3: ACCESSED VIA '/s/dasbor' BUT NOT LOGGED IN
-  // SECURITY: Render 404 NOT FOUND so unauthenticated users cannot see dashboard
+  // SCENARIO 5: SECURITY GUARD FOR '/s/dasbor' (AUTHENTICATION REQUIRED)
+  // IF NOT LOGGED IN, RENDER 404 NOT FOUND TO HIDE DASHBOARD EXISTENCE
   // ----------------------------------------------------------------------
-  if (!currentUser) {
-    return (
-      <NotFoundPage 
-        path="/s/dasbor" 
-        onGoHome={() => navigateTo('home')} 
-      />
-    );
+  if (route === 'dashboard' && !currentUser) {
+    return <NotFoundPage onGoHome={() => navigateTo('home')} />;
   }
 
   // ----------------------------------------------------------------------
-  // SCENARIO 4: ACCESSED VIA '/s/dasbor' AND AUTHENTICATED
+  // SCENARIO 6: ACCESSED VIA '/s/dasbor' AND AUTHENTICATED
   // Clean, Uncluttered Studio with Light Default & Theme Toggle
   // ----------------------------------------------------------------------
   return (
