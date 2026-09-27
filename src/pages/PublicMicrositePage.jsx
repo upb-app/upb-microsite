@@ -106,13 +106,41 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
     };
     window.addEventListener('upb-microsite-published', handleCustom);
 
+    // Real-Time on Tab Visibility Change / Window Focus
+    const handleTabFocus = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible' && isMounted) {
+        fetchPublishedMicrosite(activeSlug).then(data => {
+          if (isMounted && data && data.data) {
+            setCloudSite(data);
+            setIsLoading(false);
+          }
+        }).catch(() => {});
+      }
+    };
+    document.addEventListener('visibilitychange', handleTabFocus);
+    window.addEventListener('focus', handleTabFocus);
+
+    // Smart 4-Second Real-Time Polling Fallback (for mobile browsers / throttled background sockets)
+    const livePoll = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible' && isMounted) {
+        fetchPublishedMicrosite(activeSlug).then(data => {
+          if (isMounted && data && data.data) {
+            setCloudSite(data);
+          }
+        }).catch(() => {});
+      }
+    }, 4000);
+
     return () => {
       isMounted = false;
       clearTimeout(safetyTimer);
+      clearInterval(livePoll);
       if (unsubscribe) unsubscribe();
       if (channel) channel.close();
       window.removeEventListener('storage', handleStorage);
       window.removeEventListener('upb-microsite-published', handleCustom);
+      document.removeEventListener('visibilitychange', handleTabFocus);
+      window.removeEventListener('focus', handleTabFocus);
     };
   }, [activeSlug]);
 

@@ -27,6 +27,7 @@ import confetti from 'canvas-confetti';
 import { recordLinkClick } from './services/analyticsService';
 import { 
   publishMicrositeToCloud, 
+  syncMicrositeLive,
   deleteMicrositeFromCloud, 
   fetchAllPublishedMicrositesFromCloud,
   sanitizeSlug, 
@@ -303,8 +304,8 @@ function MainAppContent() {
   const [isMicrositeManagerOpen, setIsMicrositeManagerOpen] = useState(false);
   const [previewData, setPreviewData] = useState(data);
 
-  // Helper to update active microsite data
-  const updateActiveSiteData = (updater) => {
+  // Helper to update active microsite data with live real-time cloud sync
+  const updateActiveSiteData = (updater, immediate = false) => {
     setMicrosites(prev => prev.map(site => {
       if (site.id === currentMicrosite.id || (site.slug && currentMicrosite?.slug && site.slug === currentMicrosite.slug)) {
         const updatedData = typeof updater === 'function' ? updater(site.data) : updater;
@@ -313,8 +314,8 @@ function MainAppContent() {
           updatedAt: new Date().toISOString().split('T')[0],
           data: updatedData
         };
-        // Auto-sync to Firebase Cloud in background
-        publishMicrositeToCloud(modifiedSite).catch(() => {});
+        // Auto-sync to Firebase Cloud in background (live real-time)
+        syncMicrositeLive(modifiedSite, immediate).catch(() => {});
         return modifiedSite;
       }
       return site;
@@ -344,8 +345,8 @@ function MainAppContent() {
             }
           }
         };
-        // Auto-sync to Firebase Cloud in background
-        publishMicrositeToCloud(modifiedSite).catch(() => {});
+        // Auto-sync immediately to Firebase Cloud in background
+        syncMicrositeLive(modifiedSite, true).catch(() => {});
         return modifiedSite;
       }
       return site;
@@ -374,7 +375,7 @@ function MainAppContent() {
             }
           }
         };
-        publishMicrositeToCloud(modifiedSite).catch(() => {});
+        syncMicrositeLive(modifiedSite, true).catch(() => {});
         return modifiedSite;
       }
       return site;
@@ -404,14 +405,15 @@ function MainAppContent() {
             }
           }
         };
-        publishMicrositeToCloud(modifiedSite).catch(() => {});
+        const isImmediate = field === 'avatarUrl' || field === 'headerBannerUrl' || field === 'showBanner' || field === 'isVerified';
+        syncMicrositeLive(modifiedSite, isImmediate).catch(() => {});
         return modifiedSite;
       }
       return site;
     }));
   };
 
-  const setLinks = (updater) => {
+  const setLinks = (updater, immediate = false) => {
     updateActiveSiteData(prev => {
       const currentLinks = Array.isArray(prev?.links) ? prev.links : (data?.links || []);
       const nextLinks = typeof updater === 'function' ? updater(currentLinks) : updater;
@@ -419,21 +421,21 @@ function MainAppContent() {
         ...(prev || DEFAULT_MICROSITE_DATA),
         links: nextLinks
       };
-    });
+    }, immediate);
   };
 
   const updateTheme = (field, value) => {
     updateActiveSiteData(prev => ({
       ...prev,
       theme: { ...prev.theme, [field]: value }
-    }));
+    }), true);
   };
 
   const updateButtonStyle = (field, value) => {
     updateActiveSiteData(prev => ({
       ...prev,
       buttonStyle: { ...prev.buttonStyle, [field]: value }
-    }));
+    }), true);
   };
 
   const updateSocials = (field, value) => {
@@ -444,12 +446,12 @@ function MainAppContent() {
   };
 
   const handleApplyPreset = (presetData) => {
-    updateActiveSiteData(presetData);
+    updateActiveSiteData(presetData, true);
   };
 
   const handleResetDefault = () => {
     if (window.confirm('Reset microsite ini kembali ke data template awal?')) {
-      updateActiveSiteData(DEFAULT_MICROSITE_DATA);
+      updateActiveSiteData(DEFAULT_MICROSITE_DATA, true);
     }
   };
 

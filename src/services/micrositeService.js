@@ -397,6 +397,40 @@ export async function publishMicrositeToCloud(microsite) {
   return payload;
 }
 
+const syncTimers = new Map();
+
+/**
+ * Auto-Sync Real-Time ke Google Cloud Firestore dengan debouncing cerdas
+ * - Instant (0ms) untuk: tambah/hapus tombol, ubah preset tema, ganti logo/banner, toggle aktif.
+ * - Debounced (250ms) untuk: pengetikan teks judul, bio, URL agar tidak membebani jaringan.
+ */
+export function syncMicrositeLive(microsite, immediate = false) {
+  if (!microsite || !microsite.slug) return Promise.resolve(null);
+  const cleanSlug = sanitizeSlug(microsite.slug);
+
+  if (syncTimers.has(cleanSlug)) {
+    clearTimeout(syncTimers.get(cleanSlug));
+    syncTimers.delete(cleanSlug);
+  }
+
+  if (immediate) {
+    return publishMicrositeToCloud(microsite);
+  }
+
+  return new Promise((resolve) => {
+    const timer = setTimeout(async () => {
+      syncTimers.delete(cleanSlug);
+      try {
+        const res = await publishMicrositeToCloud(microsite);
+        resolve(res);
+      } catch (err) {
+        resolve(null);
+      }
+    }, 250);
+    syncTimers.set(cleanSlug, timer);
+  });
+}
+
 /**
  * Ambil data microsite publik langsung dari Cloud Firestore (Live Cloud First)
  */

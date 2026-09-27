@@ -218,12 +218,12 @@ export default function LinksSection({ links = [], setLinks, currentMicrosite })
       clicks: 0
     };
 
-    setLinks([...safeLinks, newLink]);
+    setLinks([...safeLinks, newLink], true);
     setExpandedLinkId(newId);
   };
 
-  const handleUpdateLink = (id, field, value) => {
-    setLinks(safeLinks.map(l => l.id === id ? { ...l, [field]: value } : l));
+  const handleUpdateLink = (id, field, value, immediate = false) => {
+    setLinks(safeLinks.map(l => l.id === id ? { ...l, [field]: value } : l), immediate);
   };
 
   const handleApplyColorPreset = (id, preset) => {
@@ -241,7 +241,7 @@ export default function LinksSection({ links = [], setLinks, currentMicrosite })
         };
       }
       return l;
-    }));
+    }), true);
   };
 
   const handleResetLinkColors = (id) => {
@@ -259,7 +259,7 @@ export default function LinksSection({ links = [], setLinks, currentMicrosite })
         };
       }
       return l;
-    }));
+    }), true);
   };
 
   const handleToggleLinkActive = (id, e) => {
@@ -270,11 +270,11 @@ export default function LinksSection({ links = [], setLinks, currentMicrosite })
         return { ...l, isActive: next };
       }
       return l;
-    }));
+    }), true);
   };
 
   const handleDeleteLink = (id) => {
-    setLinks(safeLinks.filter(l => l.id !== id));
+    setLinks(safeLinks.filter(l => l.id !== id), true);
   };
 
   const handleMoveLink = (index, direction) => {
@@ -284,7 +284,7 @@ export default function LinksSection({ links = [], setLinks, currentMicrosite })
     const temp = updated[index];
     updated[index] = updated[targetIndex];
     updated[targetIndex] = temp;
-    setLinks(updated);
+    setLinks(updated, true);
   };
 
   const activeCount = safeLinks.filter(l => l.isActive !== false).length;
@@ -806,7 +806,7 @@ export default function LinksSection({ links = [], setLinks, currentMicrosite })
                         <button
                           key={anim.id}
                           type="button"
-                          onClick={() => handleUpdateLink(link.id, 'animation', anim.id)}
+                          onClick={() => handleUpdateLink(link.id, 'animation', anim.id, true)}
                           className={`p-2 rounded-xl text-left border text-xs transition ${
                             (link.animation || 'anim-hover-scale') === anim.id
                               ? 'bg-amber-500/15 border-amber-500 text-amber-600 dark:text-amber-400 font-bold'
@@ -825,7 +825,7 @@ export default function LinksSection({ links = [], setLinks, currentMicrosite })
                       <input
                         type="checkbox"
                         checked={link.highlight || false}
-                        onChange={(e) => handleUpdateLink(link.id, 'highlight', e.target.checked)}
+                        onChange={(e) => handleUpdateLink(link.id, 'highlight', e.target.checked, true)}
                         className="rounded text-amber-500 focus:ring-amber-400"
                       />
                       <span>Beri sorotan emas bercahaya (Highlight Prioritas Utama)</span>
@@ -846,11 +846,11 @@ export default function LinksSection({ links = [], setLinks, currentMicrosite })
           onClose={() => setActiveIconPicker(null)}
           currentIcon={safeLinks.find(l => l.id === activeIconPicker)?.icon || 'Globe'}
           onSelect={(newIcon) => {
-            handleUpdateLink(activeIconPicker, 'icon', newIcon);
+            handleUpdateLink(activeIconPicker, 'icon', newIcon, true);
             setActiveIconPicker(null);
           }}
           onSelectIcon={(newIcon) => {
-            handleUpdateLink(activeIconPicker, 'icon', newIcon);
+            handleUpdateLink(activeIconPicker, 'icon', newIcon, true);
             setActiveIconPicker(null);
           }}
         />
