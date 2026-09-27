@@ -429,7 +429,7 @@ function MainAppContent() {
   };
 
   const handleTopBarCopyLink = () => {
-    const origin = window.location.origin.includes('localhost') ? window.location.origin : 'https://pmbupb.site';
+    const origin = window.location.origin.includes('localhost') ? window.location.origin : 'https://kampuspelitabangsa.site';
     const shareUrl = getShareableMicrositeUrl(currentMicrosite, origin);
     navigator.clipboard.writeText(shareUrl);
     setTopBarCopied(true);
@@ -671,7 +671,7 @@ function MainAppContent() {
             {/* Direct Copyable Link Badge */}
             <div className="flex items-center gap-1.5 bg-blue-500/10 dark:bg-blue-900/30 px-2 py-0.5 rounded-lg border border-blue-500/20">
               <span className="text-blue-600 dark:text-blue-400 font-mono text-[11px] font-bold">
-                pmbupb.site/{currentMicrosite.slug}
+                kampuspelitabangsa.site/{currentMicrosite.slug}
               </span>
               <button
                 type="button"

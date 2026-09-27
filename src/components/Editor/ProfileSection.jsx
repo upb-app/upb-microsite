@@ -46,7 +46,7 @@ export default function ProfileSection({
 
   const origin = typeof window !== 'undefined' && window.location.origin.includes('localhost') 
     ? window.location.origin 
-    : 'https://pmbupb.site';
+    : 'https://kampuspelitabangsa.site';
   
   const publicUrl = `${origin}/${currentSlug}`;
 
@@ -149,13 +149,13 @@ export default function ProfileSection({
                 Slug URL Microsite:
               </label>
               <span className="text-[11px] text-slate-400 font-normal">
-                Contoh: pmbupb.site/<strong>{currentSlug}</strong>
+                Contoh: kampuspelitabangsa.site/<strong>{currentSlug}</strong>
               </span>
             </div>
 
             <div className="flex items-center">
               <span className="px-3 py-2.5 bg-slate-100 dark:bg-slate-900 border border-r-0 border-slate-300 dark:border-slate-700 rounded-l-xl text-xs font-mono font-bold text-slate-600 dark:text-slate-400 select-none">
-                pmbupb.site/
+                kampuspelitabangsa.site/
               </span>
               <input
                 type="text"

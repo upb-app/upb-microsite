@@ -171,7 +171,7 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
       setMeta('meta[property="og:description"]', 'content', desc);
       if (p.headerBannerUrl || p.avatarUrl) {
         const img = p.headerBannerUrl || p.avatarUrl;
-        const fullImg = img.startsWith('http') ? img : `https://pmbupb.site${img.startsWith('/') ? '' : '/'}${img}`;
+        const fullImg = img.startsWith('http') ? img : `https://kampuspelitabangsa.site${img.startsWith('/') ? '' : '/'}${img}`;
         setMeta('meta[property="og:image"]', 'content', fullImg);
       }
     }
@@ -195,7 +195,7 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
         </div>
         <div className="text-center space-y-1">
           <h3 className="text-sm font-black tracking-wider text-slate-200 uppercase">Memuat Microsite...</h3>
-          <p className="text-xs font-mono text-blue-400">pmbupb.site/{activeSlug}</p>
+          <p className="text-xs font-mono text-blue-400">kampuspelitabangsa.site/{activeSlug}</p>
         </div>
       </div>
     );
@@ -218,7 +218,7 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
   const handleCopyLink = () => {
     const origin = typeof window !== 'undefined' && window.location.origin.includes('localhost') 
       ? window.location.origin 
-      : 'https://pmbupb.site';
+      : 'https://kampuspelitabangsa.site';
     const cleanUrl = `${origin}/${activeSlug}`;
     navigator.clipboard.writeText(cleanUrl);
     setCopied(true);

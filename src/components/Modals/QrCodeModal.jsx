@@ -8,7 +8,7 @@ export default function QrCodeModal({ isOpen, onClose, data, slug }) {
 
   const origin = typeof window !== 'undefined' && window.location.origin.includes('localhost') 
     ? window.location.origin 
-    : 'https://pmbupb.site';
+    : 'https://kampuspelitabangsa.site';
   
   const targetSlug = slug || 'pmb-utama';
   const micrositeUrl = `${origin}/${targetSlug}`;

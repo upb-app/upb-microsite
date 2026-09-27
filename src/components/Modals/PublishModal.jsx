@@ -28,10 +28,10 @@ export default function PublishModal({
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishSuccess, setPublishSuccess] = useState(false);
 
-  // Clean Public URL directly at domain root (e.g. 'https://pmbupb.site/pmb-utama')
+  // Clean Public URL directly at domain root (e.g. 'https://kampuspelitabangsa.site/pmb-utama')
   const origin = typeof window !== 'undefined' && window.location.origin.includes('localhost') 
     ? window.location.origin 
-    : 'https://pmbupb.site';
+    : 'https://kampuspelitabangsa.site';
   
   const publicUrl = `${origin}/${microsite?.slug || 'pmb-utama'}`;
 

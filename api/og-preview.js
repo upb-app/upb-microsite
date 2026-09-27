@@ -14,7 +14,7 @@ export default async function handler(req, res) {
     .trim()
     .toLowerCase();
 
-  const baseUrl = 'https://pmbupb.site';
+  const baseUrl = 'https://kampuspelitabangsa.site';
   const defaultTitle = 'Universitas Pelita Bangsa (UPB) • PMB & Portal Layanan Digital';
   const defaultDesc = '🎓 Penerimaan Mahasiswa Baru (PMB) 2026/2027 • Kuliah Sambil Kerja, Kelas Reguler & Karyawan, Biaya Terjangkau SPP mulai Rp 350.000/bln. Fakultas Teknik, FEB, FIKT, & Hukum. Kampus Megah Cikarang Bekasi.';
   const defaultImage = `${baseUrl}/img/og-preview.png`;

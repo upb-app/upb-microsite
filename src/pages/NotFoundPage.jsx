@@ -47,7 +47,7 @@ export default function NotFoundPage() {
           
           {cleanSlug && (
             <div className="py-1 px-3 bg-slate-100 dark:bg-slate-900/80 rounded-xl border border-slate-200 dark:border-white/10 font-mono text-xs text-rose-500 dark:text-rose-400 inline-block max-w-full truncate">
-              pmbupb.site/{cleanSlug}
+              kampuspelitabangsa.site/{cleanSlug}
             </div>
           )}
 

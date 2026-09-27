@@ -195,7 +195,7 @@ export function decodeMicrositeData(encodedStr) {
 /**
  * Generate shareable public URL with auto-sync payload
  */
-export function getShareableMicrositeUrl(microsite, origin = 'https://pmbupb.site') {
+export function getShareableMicrositeUrl(microsite, origin = 'https://kampuspelitabangsa.site') {
   if (!microsite || !microsite.slug) return `${origin}/pmb-utama`;
   const cleanSlug = sanitizeSlug(microsite.slug);
   const encoded = encodeMicrositeData(microsite);
