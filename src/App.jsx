@@ -204,16 +204,26 @@ function MainAppContent() {
       if (Array.isArray(cloudSites) && cloudSites.length > 0) {
         setMicrosites(prevList => {
           const map = new Map();
-          // 1. Utamakan data dari Cloud Firestore (Single Source of Truth)
+          // 1. Masukkan data dari Cloud Firestore
           cloudSites.forEach(cs => {
             if (cs.slug) {
               map.set(cs.slug, cs);
             }
           });
-          // 2. Pertahankan entri lokal hanya jika belum ada di cloud
+          // 2. Pertahankan entri lokal jika lebih baru atau belum ada di cloud
           prevList.forEach(s => {
-            if (s.slug && !map.has(s.slug)) {
-              map.set(s.slug, s);
+            if (s.slug) {
+              const cloudVersion = map.get(s.slug);
+              if (!cloudVersion) {
+                map.set(s.slug, s);
+              } else {
+                const cloudTime = new Date(cloudVersion.updatedAt || 0).getTime();
+                const localTime = new Date(s.updatedAt || 0).getTime();
+                if (localTime > cloudTime) {
+                  map.set(s.slug, s);
+                  publishMicrositeToCloud(s).catch(() => {});
+                }
+              }
             }
           });
           const merged = Array.from(map.values());
@@ -244,18 +254,11 @@ function MainAppContent() {
     window.addEventListener('popstate', checkRoute);
     window.addEventListener('hashchange', checkRoute);
 
-    // Auto-sync all current microsites to Firestore Cloud in background
-    if (microsites && microsites.length > 0) {
-      microsites.forEach(site => {
-        publishMicrositeToCloud(site).catch(() => {});
-      });
-    }
-
     return () => {
       window.removeEventListener('popstate', checkRoute);
       window.removeEventListener('hashchange', checkRoute);
     };
-  }, [microsites]);
+  }, []);
 
   const navigateTo = (newRoute, slug) => {
     if (newRoute === 'dashboard') {
@@ -306,12 +309,13 @@ function MainAppContent() {
 
   // Helper to update active microsite data with live real-time cloud sync
   const updateActiveSiteData = (updater, immediate = false) => {
+    const nowIso = new Date().toISOString();
     setMicrosites(prev => prev.map(site => {
       if (site.id === currentMicrosite.id || (site.slug && currentMicrosite?.slug && site.slug === currentMicrosite.slug)) {
         const updatedData = typeof updater === 'function' ? updater(site.data) : updater;
         const modifiedSite = {
           ...site,
-          updatedAt: new Date().toISOString().split('T')[0],
+          updatedAt: nowIso,
           data: updatedData
         };
         // Auto-sync to Firebase Cloud in background (live real-time)
@@ -324,6 +328,7 @@ function MainAppContent() {
 
   // Update site title or slug metadata directly (atomic update across meta & profile)
   const updateSiteMeta = (field, value) => {
+    const nowIso = new Date().toISOString();
     setMicrosites(prev => prev.map(site => {
       if (site.id === currentMicrosite.id || (site.slug && currentMicrosite?.slug && site.slug === currentMicrosite.slug)) {
         const oldSlug = site.slug;
@@ -335,7 +340,7 @@ function MainAppContent() {
           ...site,
           slug: newSlug,
           [field]: value,
-          updatedAt: new Date().toISOString().split('T')[0],
+          updatedAt: nowIso,
           data: {
             ...(site.data || DEFAULT_MICROSITE_DATA),
             profile: {
@@ -354,6 +359,7 @@ function MainAppContent() {
   };
 
   const handleUpdateSite = (siteId, updates) => {
+    const nowIso = new Date().toISOString();
     setMicrosites(prev => prev.map(site => {
       if (site.id === siteId || (site.slug && updates.slug && site.slug === updates.slug)) {
         const oldSlug = site.slug;
@@ -365,7 +371,7 @@ function MainAppContent() {
           ...site,
           ...updates,
           slug: newSlug,
-          updatedAt: new Date().toISOString().split('T')[0],
+          updatedAt: nowIso,
           data: {
             ...(site.data || DEFAULT_MICROSITE_DATA),
             profile: {
@@ -384,6 +390,7 @@ function MainAppContent() {
 
   // Section updaters
   const updateProfile = (field, value) => {
+    const nowIso = new Date().toISOString();
     setMicrosites(prev => prev.map(site => {
       if (site.id === currentMicrosite.id || (site.slug && currentMicrosite?.slug && site.slug === currentMicrosite.slug)) {
         const oldSlug = site.slug;
@@ -395,7 +402,7 @@ function MainAppContent() {
           ...site,
           title: field === 'universityName' ? value : site.title,
           slug: newSlug,
-          updatedAt: new Date().toISOString().split('T')[0],
+          updatedAt: nowIso,
           data: {
             ...(site.data || DEFAULT_MICROSITE_DATA),
             profile: {

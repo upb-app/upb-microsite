@@ -564,6 +564,7 @@ export default function LinksSection({ links = [], setLinks, currentMicrosite })
                         type="text"
                         value={link.title || ''}
                         onChange={(e) => handleUpdateLink(link.id, 'title', e.target.value)}
+                        onBlur={() => handleSaveToCloud()}
                         placeholder="Contoh: Penerimaan Mahasiswa Baru"
                         className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-500 transition font-bold"
                       />
@@ -578,6 +579,7 @@ export default function LinksSection({ links = [], setLinks, currentMicrosite })
                         type="text"
                         value={link.subtitle || ''}
                         onChange={(e) => handleUpdateLink(link.id, 'subtitle', e.target.value)}
+                        onBlur={() => handleSaveToCloud()}
                         placeholder="Contoh: Registrasi online gelombang 1"
                         className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-500 transition"
                       />
@@ -588,6 +590,7 @@ export default function LinksSection({ links = [], setLinks, currentMicrosite })
                         type="url"
                         value={link.url || ''}
                         onChange={(e) => handleUpdateLink(link.id, 'url', e.target.value)}
+                        onBlur={() => handleSaveToCloud()}
                         placeholder="https://pmb.pelitabangsa.ac.id"
                         className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-500 font-mono transition"
                       />
