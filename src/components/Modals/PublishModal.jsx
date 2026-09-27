@@ -27,15 +27,16 @@ export default function PublishModal({
   const [copied, setCopied] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishSuccess, setPublishSuccess] = useState(false);
+  const [lastPublishedTime, setLastPublishedTime] = useState(null);
 
-  // Clean Public URL directly at domain root (e.g. 'https://kampuspelitabangsa.site/pmb-utama')
+  // Clean Public URL directly at domain root (e.g. 'https://kampuspelitabangsa.site/informasiupb')
   const origin = typeof window !== 'undefined' && window.location.origin.includes('localhost') 
     ? window.location.origin 
     : 'https://kampuspelitabangsa.site';
   
-  const publicUrl = `${origin}/${microsite?.slug || 'pmb-utama'}`;
+  const publicUrl = `${origin}/${microsite?.slug || 'informasiupb'}`;
 
-  // Auto-sync to cloud when modal opens
+  // Auto-sync to cloud when modal opens or microsite changes
   useEffect(() => {
     if (isOpen && microsite) {
       handlePublishCloud();
@@ -49,6 +50,7 @@ export default function PublishModal({
     try {
       await publishMicrositeToCloud(microsite);
       setPublishSuccess(true);
+      setLastPublishedTime(new Date().toLocaleTimeString('id-ID'));
       confetti({ particleCount: 50, spread: 60 });
     } catch (e) {
       console.warn('Publish notice:', e);
@@ -107,15 +109,40 @@ export default function PublishModal({
           <div>
             <h3 className="text-lg font-black tracking-tight">Publikasi & Bagikan Microsite</h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Microsite telah disinkronisasikan ke Firebase Cloud dan aktif secara publik di internet
+              Microsite tersinkronisasi ke Firebase Cloud dan live secara publik di internet
             </p>
           </div>
 
           {/* Status Badge */}
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shadow-xs">
             <Radio className="w-3.5 h-3.5 animate-pulse text-emerald-500" />
-            <span>Terbit di Cloud (Live Real-Time)</span>
+            <span>
+              {isPublishing 
+                ? 'Menyimpan ke Cloud...' 
+                : (lastPublishedTime ? `Terbit di Cloud (Pukul ${lastPublishedTime})` : 'Terbit di Cloud (Live Real-Time)')}
+            </span>
           </div>
+        </div>
+
+        {/* Manual Re-Publish / Sync Button */}
+        <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-white/10 flex items-center justify-between gap-3">
+          <div className="text-left min-w-0">
+            <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+              <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+              <span>Sinkronisasi Data Tautan & Tombol</span>
+            </h4>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+              Klik tombol di samping untuk memastikan perubahan link tombol langsung aktif di internet.
+            </p>
+          </div>
+          <button
+            onClick={handlePublishCloud}
+            disabled={isPublishing}
+            className="flex-shrink-0 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-black text-xs rounded-xl shadow-md transition flex items-center gap-1.5 transform active:scale-95"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isPublishing ? 'animate-spin' : ''}`} />
+            <span>{isPublishing ? 'Menyimpan...' : 'Publikasikan'}</span>
+          </button>
         </div>
 
         {/* Public URL Box with Copy Button */}

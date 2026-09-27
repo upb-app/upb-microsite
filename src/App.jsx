@@ -104,7 +104,7 @@ function MainAppContent() {
       ...DEFAULT_MICROSITE_DATA.socials,
       ...(rawData.socials || {})
     },
-    links: Array.isArray(rawData.links) && rawData.links.length > 0 
+    links: Array.isArray(rawData.links)
       ? rawData.links 
       : DEFAULT_MICROSITE_DATA.links
   };
@@ -419,10 +419,14 @@ function MainAppContent() {
   };
 
   const setLinks = (updater) => {
-    updateActiveSiteData(prev => ({
-      ...prev,
-      links: typeof updater === 'function' ? updater(prev.links) : updater
-    }));
+    updateActiveSiteData(prev => {
+      const currentLinks = Array.isArray(prev?.links) ? prev.links : (data?.links || []);
+      const nextLinks = typeof updater === 'function' ? updater(currentLinks) : updater;
+      return {
+        ...(prev || DEFAULT_MICROSITE_DATA),
+        links: nextLinks
+      };
+    });
   };
 
   const updateTheme = (field, value) => {
@@ -860,7 +864,13 @@ function MainAppContent() {
       <PublishModal
         isOpen={isPublishModalOpen}
         onClose={() => setIsPublishModalOpen(false)}
-        microsite={currentMicrosite}
+        microsite={{
+          ...currentMicrosite,
+          data: {
+            ...data,
+            links: Array.isArray(data.links) ? data.links : []
+          }
+        }}
         onOpenQr={() => {
           setPreviewData(data);
           setIsQrModalOpen(true);

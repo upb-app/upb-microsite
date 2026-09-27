@@ -259,20 +259,22 @@ export async function publishMicrositeToCloud(microsite) {
     window.dispatchEvent(new CustomEvent('upb-microsite-published', { detail: payload }));
   }
 
-  // 4. Simpan ke Firestore jika database aktif
+  // 4. Simpan ke Firestore jika database aktif (Awaited for 100% data integrity)
   if (isFirebaseConfigured() && db) {
     try {
       const docRef = doc(db, 'published_microsites', cleanSlug);
-      setDoc(docRef, payload, { merge: true }).catch(() => {});
+      await setDoc(docRef, payload);
       
       const registryRef = doc(db, 'microsites_registry', payload.id);
-      setDoc(registryRef, {
+      await setDoc(registryRef, {
         id: payload.id,
         slug: cleanSlug,
         title: payload.title,
         updatedAt: nowIso
-      }, { merge: true }).catch(() => {});
-    } catch (err) {}
+      });
+    } catch (err) {
+      console.warn('Firestore direct write warning:', err);
+    }
   }
 
   return payload;
@@ -314,7 +316,24 @@ export async function fetchPublishedMicrosite(slug) {
     } catch (e) {}
   }
 
-  // 2. Cek Local Storage (0ms)
+  // 2. Ambil data terbaru langsung dari Cloud Firestore (Live Data First)
+  if (isFirebaseConfigured() && db) {
+    try {
+      const docRef = doc(db, 'published_microsites', cleanSlug);
+      const docSnap = await getDoc(docRef);
+      if (docSnap && docSnap.exists()) {
+        const data = docSnap.data();
+        if (data && typeof localStorage !== 'undefined') {
+          localStorage.setItem(`upb_site_slug_${cleanSlug}`, JSON.stringify(data));
+        }
+        return data;
+      }
+    } catch (err) {
+      console.warn('Firestore live getDoc notice:', err);
+    }
+  }
+
+  // 3. Fallback ke Cache Lokal jika offline atau Firestore lambat
   try {
     if (typeof localStorage !== 'undefined') {
       const cached = localStorage.getItem(`upb_site_slug_${cleanSlug}`);
@@ -330,21 +349,6 @@ export async function fetchPublishedMicrosite(slug) {
       }
     }
   } catch (e) {}
-
-  // 3. Cek Firestore SDK
-  if (isFirebaseConfigured() && db) {
-    try {
-      const docRef = doc(db, 'published_microsites', cleanSlug);
-      const docSnap = await getDoc(docRef);
-      if (docSnap && docSnap.exists()) {
-        const data = docSnap.data();
-        if (data && typeof localStorage !== 'undefined') {
-          localStorage.setItem(`upb_site_slug_${cleanSlug}`, JSON.stringify(data));
-        }
-        return data;
-      }
-    } catch (err) {}
-  }
 
   return null;
 }
