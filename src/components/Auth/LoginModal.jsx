@@ -6,10 +6,34 @@ import {
   AlertCircle, 
   Eye, 
   EyeOff, 
-  KeyRound 
+  KeyRound,
+  ShieldCheck,
+  ChevronDown,
+  Sparkles
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import confetti from 'canvas-confetti';
+
+const QUICK_ACCOUNTS = [
+  {
+    role: 'Super Administrator',
+    email: 'superadmin@pelitabangsa.ac.id',
+    pass: 'PasswordSuper123!',
+    desc: 'Hak akses penuh, kelola user & semua microsite'
+  },
+  {
+    role: 'Admin PMB & Admisi',
+    email: 'admin.pmb@pelitabangsa.ac.id',
+    pass: 'PasswordPMB2026!',
+    desc: 'Kelola informasi admisi & microsite pendaftaran'
+  },
+  {
+    role: 'Admin Fakultas (FASTIKOM)',
+    email: 'admin.fastikom@pelitabangsa.ac.id',
+    pass: 'PasswordFastikom2026!',
+    desc: 'Kelola microsite Fakultas Teknik & Ilmu Komputer'
+  }
+];
 
 export default function LoginModal({ isOpen, onClose, onSuccessLogin }) {
   const { login } = useAuth();
@@ -18,6 +42,7 @@ export default function LoginModal({ isOpen, onClose, onSuccessLogin }) {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [showQuickAccounts, setShowQuickAccounts] = useState(false);
 
   if (!isOpen) return null;
 
@@ -48,6 +73,12 @@ export default function LoginModal({ isOpen, onClose, onSuccessLogin }) {
     }
   };
 
+  const handleSelectQuickAccount = (acc) => {
+    setEmail(acc.email);
+    setPassword(acc.pass);
+    setErrorMessage('');
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-950/85 backdrop-blur-md animate-fadeIn">
       <div className="relative w-full max-w-md bg-gradient-to-b from-[#0b1d3a] via-[#071326] to-[#040b17] border border-white/20 rounded-3xl shadow-2xl overflow-hidden p-6 sm:p-8 space-y-5">
@@ -70,10 +101,13 @@ export default function LoginModal({ isOpen, onClose, onSuccessLogin }) {
 
           <div>
             <h3 className="text-lg font-extrabold text-white">Login Portal Pengelola</h3>
+            <p className="text-xs text-slate-300 mt-0.5">
+              Autentikasi terenkripsi & tersinkronisasi dengan Cloud Firestore
+            </p>
           </div>
         </div>
 
-        {/* Error Alert (Red for Error) */}
+        {/* Error Alert */}
         {errorMessage && (
           <div className="p-3 bg-red-500/20 border border-red-500/40 rounded-xl flex items-start gap-2.5 text-xs text-red-200 animate-fadeIn">
             <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-red-400" />
@@ -93,7 +127,7 @@ export default function LoginModal({ isOpen, onClose, onSuccessLogin }) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="nama@pelitabangsa.ac.id"
-                className="w-full pl-10 pr-4 py-2.5 bg-[#040b17] border border-white/15 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"
+                className="w-full pl-10 pr-4 py-2.5 bg-[#040b17] border border-white/15 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition font-mono"
               />
             </div>
           </div>
@@ -137,6 +171,44 @@ export default function LoginModal({ isOpen, onClose, onSuccessLogin }) {
             )}
           </button>
         </form>
+
+        {/* Quick Accounts Helper */}
+        <div className="border-t border-white/10 pt-3">
+          <button
+            type="button"
+            onClick={() => setShowQuickAccounts(!showQuickAccounts)}
+            className="w-full flex items-center justify-between text-[11px] font-semibold text-blue-400 hover:text-blue-300 transition"
+          >
+            <span className="flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5" />
+              Pilih Akun Demo Cepat (Tersedia 3 Akun)
+            </span>
+            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showQuickAccounts ? 'rotate-180' : ''}`} />
+          </button>
+
+          {showQuickAccounts && (
+            <div className="mt-2.5 space-y-1.5 animate-fadeIn">
+              {QUICK_ACCOUNTS.map((acc, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => handleSelectQuickAccount(acc)}
+                  className="w-full p-2.5 bg-[#040b17] hover:bg-white/10 border border-white/10 rounded-xl text-left transition group"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-white group-hover:text-blue-400">
+                      {acc.role}
+                    </span>
+                    <span className="text-[9px] font-mono text-slate-400 bg-white/5 px-1.5 py-0.5 rounded">
+                      Gunakan
+                    </span>
+                  </div>
+                  <p className="text-[10px] font-mono text-blue-300 mt-0.5 truncate">{acc.email}</p>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
       </div>
     </div>

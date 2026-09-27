@@ -3,56 +3,21 @@ import {
   checkRateLimit, 
   recordFailedLogin, 
   resetRateLimit, 
-  logAuditEvent, 
   sanitizeInput, 
   validatePasswordStrength,
   hashPassword
 } from '../utils/security';
-import { auth, isFirebaseConfigured } from '../services/firebase';
 import { 
-  signInWithEmailAndPassword, 
-  signOut as firebaseSignOut 
-} from 'firebase/auth';
+  fetchUsersFromCloud, 
+  saveUsersToCloud, 
+  recordAuditLogToCloud, 
+  fetchAuditLogsFromCloud,
+  subscribeToUsers,
+  DEFAULT_USERS,
+  USERS_STORAGE_KEY
+} from '../services/userService';
 
-const USERS_STORAGE_KEY = 'upb_auth_users_db_v2';
 const SESSION_STORAGE_KEY = 'upb_current_auth_session';
-
-// Default initial Superadmin and demo admin accounts
-const DEFAULT_USERS = [
-  {
-    id: 'user-superadmin-01',
-    name: 'Super Administrator UPB',
-    email: 'superadmin@pelitabangsa.ac.id',
-    password: 'PasswordSuper123!',
-    role: 'superadmin',
-    department: 'Direktorat Sistem Informasi & Humas',
-    status: 'active',
-    createdAt: '2026-01-15T08:00:00.000Z',
-    lastLogin: '2026-09-02T10:00:00.000Z'
-  },
-  {
-    id: 'user-admisi-02',
-    name: 'Admin Admisi & PMB',
-    email: 'admin.pmb@pelitabangsa.ac.id',
-    password: 'PasswordPMB2026!',
-    role: 'admin_pmb',
-    department: 'Pusat Penerimaan Mahasiswa Baru',
-    status: 'active',
-    createdAt: '2026-02-01T09:30:00.000Z',
-    lastLogin: '2026-09-01T14:20:00.000Z'
-  },
-  {
-    id: 'user-fastikom-03',
-    name: 'Editor FASTIKOM',
-    email: 'editor.fastikom@pelitabangsa.ac.id',
-    password: 'PasswordFastikom2026!',
-    role: 'admin_fakultas',
-    department: 'Fakultas Teknik & Ilmu Komputer',
-    status: 'active',
-    createdAt: '2026-02-10T11:15:00.000Z',
-    lastLogin: '2026-08-30T16:45:00.000Z'
-  }
-];
 
 const AuthContext = createContext(null);
 
@@ -69,17 +34,63 @@ export function AuthProvider({ children }) {
   const [users, setUsers] = useState(() => {
     try {
       const saved = localStorage.getItem(USERS_STORAGE_KEY);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
     } catch (e) {}
     return DEFAULT_USERS;
   });
 
-  // Save users DB
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(true);
+
+  // Sync users from Cloud Firestore on mount & live subscription
   useEffect(() => {
+    let isMounted = true;
+
+    fetchUsersFromCloud().then(cloudUsers => {
+      if (isMounted && Array.isArray(cloudUsers) && cloudUsers.length > 0) {
+        setUsers(cloudUsers);
+        setIsLoadingUsers(false);
+      }
+    }).catch(() => {
+      if (isMounted) setIsLoadingUsers(false);
+    });
+
+    fetchAuditLogsFromCloud().then(logs => {
+      if (isMounted && Array.isArray(logs)) {
+        setAuditLogs(logs);
+      }
+    }).catch(() => {});
+
+    // Live Snapshot Listener dari Cloud Firestore
+    const unsubscribe = subscribeToUsers((updatedList) => {
+      if (isMounted && Array.isArray(updatedList) && updatedList.length > 0) {
+        setUsers(updatedList);
+        setIsLoadingUsers(false);
+      }
+    });
+
+    // Cross-tab broadcast listener
+    let channel;
     try {
-      localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
-    } catch (e) {}
-  }, [users]);
+      if (typeof BroadcastChannel !== 'undefined') {
+        channel = new BroadcastChannel('upb_users_sync_channel');
+        channel.onmessage = (e) => {
+          if (e.data?.type === 'USERS_UPDATED' && Array.isArray(e.data.users) && isMounted) {
+            setUsers(e.data.users);
+          }
+        };
+      }
+    } catch (_e) {}
+
+    return () => {
+      isMounted = false;
+      if (unsubscribe) unsubscribe();
+      if (channel) channel.close();
+    };
+  }, []);
 
   // Save/remove active session
   useEffect(() => {
@@ -93,7 +104,27 @@ export function AuthProvider({ children }) {
   }, [currentUser]);
 
   /**
-   * Login method dengan Brute-Force Rate Limiting dan Audit Trail
+   * Manual refresh user list dari Cloud Firestore
+   */
+  const handleSyncUsers = async () => {
+    setIsLoadingUsers(true);
+    try {
+      const cloudUsers = await fetchUsersFromCloud();
+      if (Array.isArray(cloudUsers) && cloudUsers.length > 0) {
+        setUsers(cloudUsers);
+      }
+      const logs = await fetchAuditLogsFromCloud();
+      if (Array.isArray(logs)) {
+        setAuditLogs(logs);
+      }
+      return cloudUsers.length;
+    } finally {
+      setIsLoadingUsers(false);
+    }
+  };
+
+  /**
+   * Login method dengan Verifikasi Database Cloud Firestore & Brute-Force Rate Limiting
    */
   const login = async (email, password) => {
     const cleanEmail = sanitizeInput(email).toLowerCase();
@@ -101,64 +132,31 @@ export function AuthProvider({ children }) {
     // 1. Cek Rate Limiting (Maks 5 percobaan)
     const rateCheck = checkRateLimit(cleanEmail);
     if (!rateCheck.isAllowed) {
-      logAuditEvent('LOGIN_BLOCKED_RATE_LIMIT', `Email: ${cleanEmail}`, cleanEmail);
+      recordAuditLogToCloud('LOGIN_BLOCKED_RATE_LIMIT', `Email: ${cleanEmail}`, cleanEmail);
       throw new Error(rateCheck.message);
     }
 
-    // 2. Coba Firebase Auth jika Firebase telah dikonfigurasi penuh
-    if (isFirebaseConfigured()) {
-      try {
-        const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, password);
-        resetRateLimit(cleanEmail);
-        
-        const userProfile = {
-          id: userCredential.user.uid,
-          name: userCredential.user.displayName || 'Administrator Firebase',
-          email: userCredential.user.email,
-          role: 'superadmin',
-          status: 'active'
-        };
-
-        setCurrentUser(userProfile);
-        logAuditEvent('LOGIN_SUCCESS_FIREBASE', `Firebase Auth UID: ${userCredential.user.uid}`, cleanEmail);
-        return { success: true, user: userProfile };
-      } catch (fbError) {
-        console.error('Firebase Auth Error Code:', fbError.code, fbError.message);
-        
-        let errorMessage = 'Gagal login via Firebase: ' + fbError.message;
-        if (fbError.code === 'auth/unauthorized-domain') {
-          errorMessage = 'Domain ini belum diizinkan di Firebase! Masuk ke Firebase Console -> Authentication -> Settings -> Authorized Domains, lalu tambahkan domain ini.';
-        } else if (fbError.code === 'auth/user-not-found') {
-          errorMessage = 'Email belum terdaftar di Firebase Authentication.';
-        } else if (fbError.code === 'auth/wrong-password' || fbError.code === 'auth/invalid-credential') {
-          errorMessage = 'Password salah. Pastikan password sesuai dengan yang dibuat di Firebase Console.';
-        } else if (fbError.code === 'auth/invalid-email') {
-          errorMessage = 'Format email tidak valid.';
-        } else if (fbError.code === 'auth/too-many-requests') {
-          errorMessage = 'Terlalu banyak percobaan gagal di Firebase. Akun diblokir sementara.';
-        } else if (fbError.code === 'auth/invalid-api-key' || fbError.code === 'auth/api-key-not-valid') {
-          errorMessage = 'API Key Firebase tidak valid. Periksa kembali VITE_FIREBASE_API_KEY di Vercel.';
-        } else if (fbError.code === 'auth/user-disabled') {
-          errorMessage = 'Akun ini telah dinonaktifkan di Firebase Console.';
-        }
-
-        recordFailedLogin(cleanEmail);
-        logAuditEvent('LOGIN_FAILED_FIREBASE', `${fbError.code}: ${fbError.message}`, cleanEmail);
-        throw new Error(errorMessage);
+    // 2. Ambil daftar user terkini dari Cloud Firestore jika memungkinkan
+    let currentUsersList = users;
+    try {
+      const liveUsers = await fetchUsersFromCloud();
+      if (Array.isArray(liveUsers) && liveUsers.length > 0) {
+        currentUsersList = liveUsers;
+        setUsers(liveUsers);
       }
-    }
+    } catch (_e) {}
 
-    // 3. Fallback / Built-in Cryptographic Verification
-    const foundUser = users.find(u => u.email.toLowerCase() === cleanEmail);
+    // 3. Verifikasi kredensial pengguna
+    const foundUser = currentUsersList.find(u => u.email.toLowerCase() === cleanEmail);
 
     if (!foundUser) {
       recordFailedLogin(cleanEmail);
-      logAuditEvent('LOGIN_FAILED_USER_NOT_FOUND', `Email tidak terdaftar: ${cleanEmail}`, cleanEmail);
+      recordAuditLogToCloud('LOGIN_FAILED_USER_NOT_FOUND', `Email tidak terdaftar: ${cleanEmail}`, cleanEmail);
       throw new Error('Email atau password yang Anda masukkan salah.');
     }
 
     if (foundUser.status === 'suspended') {
-      logAuditEvent('LOGIN_BLOCKED_SUSPENDED', `Akun dinonaktifkan: ${cleanEmail}`, cleanEmail);
+      recordAuditLogToCloud('LOGIN_BLOCKED_SUSPENDED', `Akun dinonaktifkan: ${cleanEmail}`, cleanEmail);
       throw new Error('Akun ini telah dinonaktifkan oleh Superadmin. Hubungi DSI UPB.');
     }
 
@@ -167,7 +165,7 @@ export function AuthProvider({ children }) {
 
     if (!isPasswordMatch) {
       const failInfo = recordFailedLogin(cleanEmail);
-      logAuditEvent('LOGIN_FAILED_WRONG_PASSWORD', `Password salah (Percobaan ke-${failInfo.attempts})`, cleanEmail);
+      recordAuditLogToCloud('LOGIN_FAILED_WRONG_PASSWORD', `Password salah (Percobaan ke-${failInfo.attempts})`, cleanEmail);
       
       if (failInfo.isLocked) {
         throw new Error('Terlalu banyak percobaan salah! Akun dikunci sementara selama 60 detik.');
@@ -177,15 +175,19 @@ export function AuthProvider({ children }) {
 
     // Login Berhasil
     resetRateLimit(cleanEmail);
+    const nowIso = new Date().toISOString();
     const updatedUser = {
       ...foundUser,
-      lastLogin: new Date().toISOString()
+      lastLogin: nowIso
     };
 
-    // Update lastLogin di DB
-    setUsers(prev => prev.map(u => u.id === foundUser.id ? updatedUser : u));
+    // Update lastLogin di Cloud Firestore & local state
+    const updatedUsersList = currentUsersList.map(u => u.id === foundUser.id ? updatedUser : u);
+    setUsers(updatedUsersList);
+    saveUsersToCloud(updatedUsersList).catch(() => {});
+    
     setCurrentUser(updatedUser);
-    logAuditEvent('LOGIN_SUCCESS', `Login berhasil sebagai role: ${updatedUser.role}`, cleanEmail);
+    recordAuditLogToCloud('LOGIN_SUCCESS', `Login berhasil sebagai role: ${updatedUser.role} (${updatedUser.name})`, cleanEmail);
 
     return { success: true, user: updatedUser };
   };
@@ -195,20 +197,15 @@ export function AuthProvider({ children }) {
    */
   const logout = async () => {
     if (currentUser) {
-      logAuditEvent('LOGOUT', `User ${currentUser.email} telah logout`, currentUser.email);
-    }
-    if (isFirebaseConfigured()) {
-      try {
-        await firebaseSignOut(auth);
-      } catch (e) {}
+      recordAuditLogToCloud('LOGOUT', `User ${currentUser.email} telah logout`, currentUser.email);
     }
     setCurrentUser(null);
   };
 
   /**
-   * Superadmin: Menambahkan user baru
+   * Superadmin: Menambahkan user baru secara permanen di Cloud Firestore
    */
-  const addNewUser = async ({ name, email, password, role, department }) => {
+  const addNewUser = async ({ name, email, password, role, department, assignedSlugs = [] }) => {
     if (!currentUser || currentUser.role !== 'superadmin') {
       throw new Error('Akses Ditolak: Hanya Superadmin yang memiliki wewenang membuat user baru.');
     }
@@ -235,6 +232,7 @@ export function AuthProvider({ children }) {
     }
 
     const hashedPassword = await hashPassword(password);
+    const nowIso = new Date().toISOString();
 
     const newUser = {
       id: `user-${Date.now()}`,
@@ -243,21 +241,51 @@ export function AuthProvider({ children }) {
       password: hashedPassword,
       role: role || 'editor',
       department: cleanDept,
+      assignedSlugs: role === 'superadmin' ? ['*'] : (assignedSlugs || []),
       status: 'active',
-      createdAt: new Date().toISOString(),
+      createdAt: nowIso,
       lastLogin: null
     };
 
-    setUsers(prev => [newUser, ...prev]);
-    logAuditEvent('USER_CREATED', `Superadmin membuat akun baru: ${cleanEmail} (${newUser.role})`, currentUser.email);
+    const updatedList = [newUser, ...users];
+    setUsers(updatedList);
+    await saveUsersToCloud(updatedList);
+    await recordAuditLogToCloud('USER_CREATED', `Superadmin membuat akun baru: ${cleanEmail} (${newUser.role} - ${cleanDept})`, currentUser.email);
 
     return newUser;
   };
 
   /**
-   * Superadmin: Toggle Status User (Active / Suspended)
+   * Superadmin: Edit info user (Nama, Role, Department, Assigned Slugs)
    */
-  const toggleUserStatus = (userId) => {
+  const editUser = async (userId, updates) => {
+    if (!currentUser || currentUser.role !== 'superadmin') {
+      throw new Error('Hanya Superadmin yang bisa mengedit informasi pengguna.');
+    }
+
+    const targetUser = users.find(u => u.id === userId);
+    if (!targetUser) throw new Error('User tidak ditemukan.');
+
+    const modifiedUser = {
+      ...targetUser,
+      ...updates,
+      name: updates.name ? sanitizeInput(updates.name) : targetUser.name,
+      department: updates.department ? sanitizeInput(updates.department) : targetUser.department,
+      role: updates.role || targetUser.role
+    };
+
+    const updatedList = users.map(u => u.id === userId ? modifiedUser : u);
+    setUsers(updatedList);
+    await saveUsersToCloud(updatedList);
+    await recordAuditLogToCloud('USER_UPDATED', `Superadmin mengubah info user: ${targetUser.email}`, currentUser.email);
+
+    return modifiedUser;
+  };
+
+  /**
+   * Superadmin: Toggle Status User (Active / Suspended) secara permanen di Firestore
+   */
+  const toggleUserStatus = async (userId) => {
     if (!currentUser || currentUser.role !== 'superadmin') {
       throw new Error('Hanya Superadmin yang bisa mengubah status user.');
     }
@@ -266,13 +294,15 @@ export function AuthProvider({ children }) {
     if (!targetUser) throw new Error('User tidak ditemukan.');
 
     if (targetUser.id === currentUser.id) {
-      throw new Error('Tidak dapat menonaktifkan akun sendiri.');
+      throw new Error('Tidak dapat menonaktifkan akun Anda sendiri.');
     }
 
     const newStatus = targetUser.status === 'active' ? 'suspended' : 'active';
-    setUsers(prev => prev.map(u => u.id === userId ? { ...u, status: newStatus } : u));
+    const updatedList = users.map(u => u.id === userId ? { ...u, status: newStatus } : u);
+    setUsers(updatedList);
+    await saveUsersToCloud(updatedList);
 
-    logAuditEvent(
+    await recordAuditLogToCloud(
       'USER_STATUS_CHANGED', 
       `Status user ${targetUser.email} diubah menjadi: ${newStatus}`, 
       currentUser.email
@@ -280,7 +310,7 @@ export function AuthProvider({ children }) {
   };
 
   /**
-   * Superadmin: Reset Password User
+   * Superadmin: Reset Password User di Cloud Firestore
    */
   const resetUserPassword = async (userId, newPassword) => {
     if (!currentUser || currentUser.role !== 'superadmin') {
@@ -293,16 +323,20 @@ export function AuthProvider({ children }) {
     }
 
     const hashedPassword = await hashPassword(newPassword);
-    setUsers(prev => prev.map(u => u.id === userId ? { ...u, password: hashedPassword } : u));
-    
     const target = users.find(u => u.id === userId);
-    logAuditEvent('USER_PASSWORD_RESET', `Password user ${target?.email} direset oleh Superadmin`, currentUser.email);
+    if (!target) throw new Error('User tidak ditemukan.');
+
+    const updatedList = users.map(u => u.id === userId ? { ...u, password: hashedPassword } : u);
+    setUsers(updatedList);
+    await saveUsersToCloud(updatedList);
+    
+    await recordAuditLogToCloud('USER_PASSWORD_RESET', `Password user ${target.email} direset oleh Superadmin`, currentUser.email);
   };
 
   /**
-   * Superadmin: Hapus User
+   * Superadmin: Hapus User dari Cloud Firestore
    */
-  const deleteUser = (userId) => {
+  const deleteUser = async (userId) => {
     if (!currentUser || currentUser.role !== 'superadmin') {
       throw new Error('Hanya Superadmin yang bisa menghapus user.');
     }
@@ -314,8 +348,10 @@ export function AuthProvider({ children }) {
       throw new Error('Tidak dapat menghapus akun Anda sendiri.');
     }
 
-    setUsers(prev => prev.filter(u => u.id !== userId));
-    logAuditEvent('USER_DELETED', `User ${targetUser.email} dihapus permanen`, currentUser.email);
+    const updatedList = users.filter(u => u.id !== userId);
+    setUsers(updatedList);
+    await saveUsersToCloud(updatedList);
+    await recordAuditLogToCloud('USER_DELETED', `User ${targetUser.email} dihapus permanen oleh Superadmin`, currentUser.email);
   };
 
   const isSuperadmin = currentUser?.role === 'superadmin';
@@ -324,12 +360,16 @@ export function AuthProvider({ children }) {
     currentUser,
     isSuperadmin,
     users,
+    auditLogs,
+    isLoadingUsers,
     login,
     logout,
     addNewUser,
+    editUser,
     toggleUserStatus,
     resetUserPassword,
-    deleteUser
+    deleteUser,
+    handleSyncUsers
   };
 
   return (
