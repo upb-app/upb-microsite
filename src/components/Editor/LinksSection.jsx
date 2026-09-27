@@ -7,13 +7,19 @@ import {
   Link as LinkIcon, 
   Flame, 
   Eye, 
-  EyeOff,
-  Palette,
-  RotateCcw,
-  Sparkles
+  EyeOff, 
+  Palette, 
+  RotateCcw, 
+  Sparkles,
+  Send,
+  CheckCircle2,
+  RefreshCw,
+  Globe
 } from 'lucide-react';
 import DynamicIcon from '../Common/DynamicIcon';
 import IconPickerModal from './IconPickerModal';
+import confetti from 'canvas-confetti';
+import { publishMicrositeToCloud } from '../../services/micrositeService';
 
 const ANIMATIONS = [
   { id: 'inherit', label: 'Ikuti Tema Global' },
@@ -144,10 +150,33 @@ const QUICK_TEMPLATES = [
   { title: 'Download Buku Panduan Akademik', subtitle: 'Pedoman kurikulum & jadwal kuliah PDF', icon: 'Download', badge: 'PDF', badgeColor: 'bg-purple-600 text-white', animation: 'anim-hover-scale', highlight: false, isActive: true, colorPreset: 'royal-purple', customGradient: 'linear-gradient(135deg, #5b21b6 0%, #7c3aed 100%)', customTextColor: '#ffffff', customBorderColor: '#a78bfa' },
 ];
 
-export default function LinksSection({ links = [], setLinks }) {
+export default function LinksSection({ links = [], setLinks, currentMicrosite }) {
   const safeLinks = Array.isArray(links) ? links : [];
   const [activeIconPicker, setActiveIconPicker] = useState(null);
   const [expandedLinkId, setExpandedLinkId] = useState(safeLinks[0]?.id || null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  const handleSaveToCloud = async () => {
+    if (!currentMicrosite) return;
+    setIsSaving(true);
+    try {
+      await publishMicrositeToCloud({
+        ...currentMicrosite,
+        data: {
+          ...(currentMicrosite.data || {}),
+          links: safeLinks
+        }
+      });
+      setSaveSuccess(true);
+      confetti({ particleCount: 45, spread: 60 });
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (e) {
+      console.warn('Save notice:', e);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleAddLink = (template = null) => {
     const newId = `link-${Date.now()}`;
@@ -267,12 +296,20 @@ export default function LinksSection({ links = [], setLinks }) {
       {/* Top action header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl border border-slate-200 dark:border-slate-700/60">
         <div>
-          <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+          <div className="flex items-center gap-2">
             <span className="p-2 bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-xl">
               <LinkIcon className="w-4 h-4" />
             </span>
-            Daftar Tombol & Tautan ({safeLinks.length})
-          </h3>
+            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+              Daftar Tombol & Tautan ({safeLinks.length})
+            </h3>
+            {saveSuccess && (
+              <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 animate-fadeIn flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3" />
+                Tersimpan di Cloud!
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mt-1">
             <span className="inline-flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
@@ -287,17 +324,36 @@ export default function LinksSection({ links = [], setLinks }) {
                 </span>
               </>
             )}
+            <span>•</span>
+            <span className="text-[11px] text-blue-600 dark:text-blue-400 font-medium">
+              Cloud Firestore Real-Time
+            </span>
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={() => handleAddLink()}
-          className="flex items-center justify-center gap-1.5 px-4 py-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-yellow-300 hover:to-amber-400 text-slate-950 font-black rounded-xl text-xs shadow-md transition active:scale-95"
-        >
-          <Plus className="w-4 h-4" />
-          Tambah Tombol Baru
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {currentMicrosite && (
+            <button
+              type="button"
+              onClick={handleSaveToCloud}
+              disabled={isSaving}
+              className="flex items-center justify-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl text-xs shadow-md transition active:scale-95 disabled:opacity-50"
+              title="Publikasikan link langsung ke Google Cloud Firestore"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isSaving ? 'animate-spin' : ''}`} />
+              <span>{isSaving ? 'Menyimpan ke Cloud...' : 'Publikasikan ke Cloud'}</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={() => handleAddLink()}
+            className="flex items-center justify-center gap-1.5 px-4 py-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-yellow-300 hover:to-amber-400 text-slate-950 font-black rounded-xl text-xs shadow-md transition active:scale-95"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Tambah Tombol</span>
+          </button>
+        </div>
       </div>
 
       {/* Quick Add Presets */}

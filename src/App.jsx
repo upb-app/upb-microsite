@@ -83,7 +83,7 @@ function MainAppContent() {
   });
 
   // Ensure activeSiteId is valid and schema is fully hydrated
-  const currentMicrosite = microsites.find(s => s.id === activeSiteId) || microsites[0] || DEFAULT_MICROSITES_LIST[0];
+  const currentMicrosite = microsites.find(s => s.id === activeSiteId || (s.slug && s.slug === activeSiteId)) || microsites[0] || DEFAULT_MICROSITES_LIST[0];
   const rawData = currentMicrosite?.data || DEFAULT_MICROSITE_DATA;
   const data = {
     ...DEFAULT_MICROSITE_DATA,
@@ -306,7 +306,7 @@ function MainAppContent() {
   // Helper to update active microsite data
   const updateActiveSiteData = (updater) => {
     setMicrosites(prev => prev.map(site => {
-      if (site.id === currentMicrosite.id) {
+      if (site.id === currentMicrosite.id || (site.slug && currentMicrosite?.slug && site.slug === currentMicrosite.slug)) {
         const updatedData = typeof updater === 'function' ? updater(site.data) : updater;
         const modifiedSite = {
           ...site,
@@ -324,7 +324,7 @@ function MainAppContent() {
   // Update site title or slug metadata directly (atomic update across meta & profile)
   const updateSiteMeta = (field, value) => {
     setMicrosites(prev => prev.map(site => {
-      if (site.id === currentMicrosite.id) {
+      if (site.id === currentMicrosite.id || (site.slug && currentMicrosite?.slug && site.slug === currentMicrosite.slug)) {
         const oldSlug = site.slug;
         const newSlug = field === 'slug' ? sanitizeSlug(value) : site.slug;
         if (field === 'slug' && oldSlug && oldSlug !== newSlug) {
@@ -354,7 +354,7 @@ function MainAppContent() {
 
   const handleUpdateSite = (siteId, updates) => {
     setMicrosites(prev => prev.map(site => {
-      if (site.id === siteId) {
+      if (site.id === siteId || (site.slug && updates.slug && site.slug === updates.slug)) {
         const oldSlug = site.slug;
         const newSlug = updates.slug ? sanitizeSlug(updates.slug) : site.slug;
         if (updates.slug && oldSlug && oldSlug !== newSlug) {
@@ -384,7 +384,7 @@ function MainAppContent() {
   // Section updaters
   const updateProfile = (field, value) => {
     setMicrosites(prev => prev.map(site => {
-      if (site.id === currentMicrosite.id) {
+      if (site.id === currentMicrosite.id || (site.slug && currentMicrosite?.slug && site.slug === currentMicrosite.slug)) {
         const oldSlug = site.slug;
         const newSlug = field === 'slug' ? sanitizeSlug(value) : site.slug;
         if (field === 'slug' && oldSlug && oldSlug !== newSlug) {
@@ -789,7 +789,11 @@ function MainAppContent() {
             )}
 
             {activeTab === 'links' && (
-              <LinksSection links={data.links} setLinks={setLinks} />
+              <LinksSection 
+                links={data.links} 
+                setLinks={setLinks} 
+                currentMicrosite={{ ...currentMicrosite, data }}
+              />
             )}
 
             {activeTab === 'design' && (

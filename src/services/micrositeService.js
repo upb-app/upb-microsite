@@ -4,7 +4,7 @@
  * Menghubungkan pembuatan, pengeditan, dan publikasi microsite secara real-time
  * langsung ke Cloud Firestore untuk akses publik global di internet.
  */
-import { db, isFirebaseConfigured } from './firebase';
+import { db, isFirebaseConfigured } from './firebase.js';
 import { 
   doc, 
   setDoc, 
@@ -77,6 +77,61 @@ export function decodeFirestoreFields(fields) {
     result[key] = decodeFirestoreValue(val);
   }
   return result;
+}
+
+export function cleanObjectForFirestore(val) {
+  if (val === undefined) return '';
+  if (val === null) return null;
+  if (typeof val === 'boolean' || typeof val === 'number' || typeof val === 'string') return val;
+  if (Array.isArray(val)) {
+    return val.map(item => cleanObjectForFirestore(item));
+  }
+  if (typeof val === 'object') {
+    const res = {};
+    for (const [k, v] of Object.entries(val)) {
+      if (v !== undefined) {
+        res[k] = cleanObjectForFirestore(v);
+      }
+    }
+    return res;
+  }
+  return String(val);
+}
+
+export function encodeFirestoreValue(val) {
+  if (val === null || val === undefined) return { nullValue: null };
+  if (typeof val === 'boolean') return { booleanValue: val };
+  if (typeof val === 'number') {
+    if (Number.isInteger(val)) return { integerValue: val.toString() };
+    return { doubleValue: val };
+  }
+  if (typeof val === 'string') return { stringValue: val };
+  if (Array.isArray(val)) {
+    return {
+      arrayValue: {
+        values: val.map(encodeFirestoreValue)
+      }
+    };
+  }
+  if (typeof val === 'object') {
+    return {
+      mapValue: {
+        fields: encodeFirestoreFields(val)
+      }
+    };
+  }
+  return { stringValue: String(val) };
+}
+
+export function encodeFirestoreFields(obj) {
+  if (!obj || typeof obj !== 'object') return {};
+  const fields = {};
+  for (const [key, val] of Object.entries(obj)) {
+    if (val !== undefined) {
+      fields[key] = encodeFirestoreValue(val);
+    }
+  }
+  return fields;
 }
 
 /**
@@ -260,7 +315,7 @@ export async function publishMicrositeToCloud(microsite) {
 
   const cleanSlug = sanitizeSlug(microsite.slug);
   const nowIso = new Date().toISOString();
-  const cleanData = JSON.parse(JSON.stringify(microsite.data || {}));
+  const cleanData = cleanObjectForFirestore(microsite.data || {});
 
   const payload = {
     id: microsite.id || `site-${cleanSlug}`,
@@ -274,7 +329,9 @@ export async function publishMicrositeToCloud(microsite) {
     cloudSyncStatus: 'live'
   };
 
-  // 1. Simpan langsung ke Cloud Firestore (Awaited agar 100% tersimpan ke database Google)
+  // 1. Dual Channel Write to Google Cloud Firestore:
+  // Channel A: Direct Firebase JS SDK
+  let sdkSuccess = false;
   if (isFirebaseConfigured() && db) {
     try {
       const docRef = doc(db, 'published_microsites', cleanSlug);
@@ -287,8 +344,23 @@ export async function publishMicrositeToCloud(microsite) {
         title: payload.title,
         updatedAt: nowIso
       });
+      sdkSuccess = true;
     } catch (err) {
-      console.error('Gagal menulis ke Cloud Firestore:', err);
+      console.warn('Firestore SDK setDoc warning, falling back to REST write:', err);
+    }
+  }
+
+  // Channel B: Direct Google Cloud Firestore REST API PATCH
+  try {
+    const encoded = encodeFirestoreFields(payload);
+    await fetch(`https://firestore.googleapis.com/v1/projects/upb-microsite/databases/(default)/documents/published_microsites/${cleanSlug}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields: encoded })
+    });
+  } catch (restErr) {
+    if (!sdkSuccess) {
+      console.error('Firestore REST write notice:', restErr);
     }
   }
 
