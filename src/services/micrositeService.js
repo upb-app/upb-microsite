@@ -1,7 +1,8 @@
 /**
  * Microsite Cloud Synchronization & Universal Link Engine
- * Menghubungkan pembuatan, pengubahan nama/slug, dan publikasi microsite
- * secara real-time ke Cloud Firestore untuk akses publik global di internet.
+ * Single Source of Truth: Cloud Firestore (Bypass Browser Stale Cache)
+ * Menghubungkan pembuatan, pengeditan, dan publikasi microsite secara real-time
+ * langsung ke Cloud Firestore untuk akses publik global di internet.
  */
 import { db, isFirebaseConfigured } from './firebase';
 import { 
@@ -9,7 +10,9 @@ import {
   setDoc, 
   getDoc, 
   getDocs,
-  collection,
+  getDocFromServer,
+  getDocsFromServer,
+  collection, 
   deleteDoc, 
   onSnapshot 
 } from 'firebase/firestore';
@@ -44,6 +47,36 @@ function getBroadcastChannel() {
     }
   }
   return sharedBroadcastChannel;
+}
+
+/**
+ * Helper: Decode Firestore REST API field values into plain JavaScript objects
+ */
+function decodeFirestoreValue(val) {
+  if (!val || typeof val !== 'object') return val;
+  if ('stringValue' in val) return val.stringValue;
+  if ('integerValue' in val) return parseInt(val.integerValue, 10);
+  if ('doubleValue' in val) return parseFloat(val.doubleValue);
+  if ('booleanValue' in val) return Boolean(val.booleanValue);
+  if ('nullValue' in val) return null;
+  if ('timestampValue' in val) return val.timestampValue;
+  if ('arrayValue' in val) {
+    const arr = val.arrayValue?.values || [];
+    return arr.map(decodeFirestoreValue);
+  }
+  if ('mapValue' in val) {
+    return decodeFirestoreFields(val.mapValue?.fields || {});
+  }
+  return val;
+}
+
+export function decodeFirestoreFields(fields) {
+  if (!fields) return {};
+  const result = {};
+  for (const [key, val] of Object.entries(fields)) {
+    result[key] = decodeFirestoreValue(val);
+  }
+  return result;
 }
 
 /**
@@ -135,7 +168,13 @@ export function encodeMicrositeData(site) {
         b: l.badge,
         bc: l.badgeColor,
         a: l.animation,
-        h: l.highlight
+        h: l.highlight,
+        cbg: l.customBgColor,
+        cg: l.customGradient,
+        ct: l.customTextColor,
+        cb: l.customBorderColor,
+        cic: l.customIconColor,
+        cib: l.customIconBg
       }))
     };
     const jsonStr = JSON.stringify(minified);
@@ -185,6 +224,12 @@ export function decodeMicrositeData(encodedStr) {
           badgeColor: l.bc,
           animation: l.a,
           highlight: l.h,
+          customBgColor: l.cbg,
+          customGradient: l.cg,
+          customTextColor: l.ct,
+          customBorderColor: l.cb,
+          customIconColor: l.cic,
+          customIconBg: l.cib,
           isActive: true
         }))
       }
@@ -208,7 +253,7 @@ export function getShareableMicrositeUrl(microsite, origin = 'https://kampuspeli
 }
 
 /**
- * Publikasikan Microsite ke Cloud (Firestore + Local Cache + Universal Encoder)
+ * Publikasikan Microsite ke Cloud Firestore (Awaited Single Source of Truth)
  */
 export async function publishMicrositeToCloud(microsite) {
   if (!microsite || !microsite.slug) return null;
@@ -229,37 +274,7 @@ export async function publishMicrositeToCloud(microsite) {
     cloudSyncStatus: 'live'
   };
 
-  // Hapus dari daftar deleted jika dibuat ulang
-  try {
-    if (typeof localStorage !== 'undefined') {
-      const deletedRaw = localStorage.getItem('upb_deleted_slugs') || '[]';
-      const deletedList = JSON.parse(deletedRaw);
-      const filtered = deletedList.filter(s => s !== cleanSlug);
-      localStorage.setItem('upb_deleted_slugs', JSON.stringify(filtered));
-    }
-  } catch (e) {}
-
-  // 1. Simpan ke Cache Lokal per slug untuk akses instan (0ms)
-  try {
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem(`upb_site_slug_${cleanSlug}`, JSON.stringify(payload));
-    }
-  } catch (e) {}
-
-  // 2. Broadcast Channel untuk sinkronisasi instan antar-tab di browser
-  try {
-    const channel = getBroadcastChannel();
-    if (channel) {
-      channel.postMessage({ type: 'MICROSITE_UPDATED', slug: cleanSlug, site: payload });
-    }
-  } catch (e) {}
-
-  // 3. Dispatch window custom event
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('upb-microsite-published', { detail: payload }));
-  }
-
-  // 4. Simpan ke Firestore jika database aktif (Awaited for 100% data integrity)
+  // 1. Simpan langsung ke Cloud Firestore (Awaited agar 100% tersimpan ke database Google)
   if (isFirebaseConfigured() && db) {
     try {
       const docRef = doc(db, 'published_microsites', cleanSlug);
@@ -273,15 +288,45 @@ export async function publishMicrositeToCloud(microsite) {
         updatedAt: nowIso
       });
     } catch (err) {
-      console.warn('Firestore direct write warning:', err);
+      console.error('Gagal menulis ke Cloud Firestore:', err);
     }
+  }
+
+  // 2. Hapus dari daftar deleted jika dibuat ulang
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const deletedRaw = localStorage.getItem('upb_deleted_slugs') || '[]';
+      const deletedList = JSON.parse(deletedRaw);
+      const filtered = deletedList.filter(s => s !== cleanSlug);
+      localStorage.setItem('upb_deleted_slugs', JSON.stringify(filtered));
+    }
+  } catch (e) {}
+
+  // 3. Perbarui cache lokal dengan data Cloud terbaru
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(`upb_site_slug_${cleanSlug}`, JSON.stringify(payload));
+    }
+  } catch (e) {}
+
+  // 4. Broadcast Channel untuk sinkronisasi instan antar-tab di browser
+  try {
+    const channel = getBroadcastChannel();
+    if (channel) {
+      channel.postMessage({ type: 'MICROSITE_UPDATED', slug: cleanSlug, site: payload });
+    }
+  } catch (e) {}
+
+  // 5. Dispatch window custom event
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('upb-microsite-published', { detail: payload }));
   }
 
   return payload;
 }
 
 /**
- * Ambil data microsite publik dari Cloud / URL / Cache
+ * Ambil data microsite publik langsung dari Cloud Firestore (Live Cloud First)
  */
 export async function fetchPublishedMicrosite(slug) {
   if (!slug) return null;
@@ -298,7 +343,48 @@ export async function fetchPublishedMicrosite(slug) {
     }
   } catch (e) {}
 
-  // 1. Cek parameter URL ?d=... (Universal Sync untuk Incognito & Device Luar)
+  // 1. Ambil data terbaru langsung dari Cloud Firestore Server (Bypass Browser Cache)
+  if (isFirebaseConfigured() && db) {
+    try {
+      const docRef = doc(db, 'published_microsites', cleanSlug);
+      let docSnap;
+      try {
+        docSnap = await getDocFromServer(docRef);
+      } catch (_serverErr) {
+        docSnap = await getDoc(docRef);
+      }
+
+      if (docSnap && docSnap.exists()) {
+        const liveData = docSnap.data();
+        if (liveData && typeof localStorage !== 'undefined') {
+          localStorage.setItem(`upb_site_slug_${cleanSlug}`, JSON.stringify(liveData));
+        }
+        return liveData;
+      }
+    } catch (err) {
+      console.warn('Firestore live getDoc notice, falling back to REST:', err);
+    }
+  }
+
+  // 2. Fallback REST API Firestore Server dengan Cache-Buster (?t=timestamp)
+  try {
+    const res = await fetch(`https://firestore.googleapis.com/v1/projects/upb-microsite/databases/(default)/documents/published_microsites/${cleanSlug}?t=${Date.now()}`, {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' }
+    });
+    if (res.ok) {
+      const json = await res.json();
+      if (json && json.fields) {
+        const parsed = decodeFirestoreFields(json.fields);
+        if (parsed && typeof localStorage !== 'undefined') {
+          localStorage.setItem(`upb_site_slug_${cleanSlug}`, JSON.stringify(parsed));
+        }
+        return parsed;
+      }
+    }
+  } catch (e) {}
+
+  // 3. Fallback parameter URL ?d=... (Universal Sync untuk Incognito & Device Luar)
   if (typeof window !== 'undefined') {
     try {
       const urlParams = new URLSearchParams(window.location.search);
@@ -306,34 +392,13 @@ export async function fetchPublishedMicrosite(slug) {
       if (encodedParam) {
         const decoded = decodeMicrositeData(encodedParam);
         if (decoded && decoded.data) {
-          localStorage.setItem(`upb_site_slug_${cleanSlug}`, JSON.stringify(decoded));
-          try {
-            window.history.replaceState({}, '', window.location.pathname);
-          } catch (e) {}
           return decoded;
         }
       }
     } catch (e) {}
   }
 
-  // 2. Ambil data terbaru langsung dari Cloud Firestore (Live Data First)
-  if (isFirebaseConfigured() && db) {
-    try {
-      const docRef = doc(db, 'published_microsites', cleanSlug);
-      const docSnap = await getDoc(docRef);
-      if (docSnap && docSnap.exists()) {
-        const data = docSnap.data();
-        if (data && typeof localStorage !== 'undefined') {
-          localStorage.setItem(`upb_site_slug_${cleanSlug}`, JSON.stringify(data));
-        }
-        return data;
-      }
-    } catch (err) {
-      console.warn('Firestore live getDoc notice:', err);
-    }
-  }
-
-  // 3. Fallback ke Cache Lokal jika offline atau Firestore lambat
+  // 4. Fallback terakhir: Cache Lokal hanya jika offline tanpa jaringan internet
   try {
     if (typeof localStorage !== 'undefined') {
       const cached = localStorage.getItem(`upb_site_slug_${cleanSlug}`);
@@ -354,16 +419,21 @@ export async function fetchPublishedMicrosite(slug) {
 }
 
 /**
- * Ambil semua microsite terdaftar dari Cloud Firestore secara lengkap
+ * Ambil semua microsite terdaftar dari Cloud Firestore secara lengkap (Server First)
  */
 export async function fetchAllPublishedMicrositesFromCloud() {
   const sites = [];
   const slugsSeen = new Set();
 
-  // 1. Ambil via Firebase SDK
+  // 1. Ambil via Firebase SDK langsung dari server Google Cloud Firestore
   if (isFirebaseConfigured() && db) {
     try {
-      const snap = await getDocs(collection(db, 'published_microsites'));
+      let snap;
+      try {
+        snap = await getDocsFromServer(collection(db, 'published_microsites'));
+      } catch (_err) {
+        snap = await getDocs(collection(db, 'published_microsites'));
+      }
       snap.forEach((docSnap) => {
         if (docSnap.exists()) {
           const d = docSnap.data();
@@ -379,9 +449,12 @@ export async function fetchAllPublishedMicrositesFromCloud() {
     }
   }
 
-  // 2. Fallback REST API Firestore
+  // 2. Fallback REST API Firestore langsung ke server dengan no-cache
   try {
-    const res = await fetch('https://firestore.googleapis.com/v1/projects/upb-microsite/databases/(default)/documents/published_microsites');
+    const res = await fetch(`https://firestore.googleapis.com/v1/projects/upb-microsite/databases/(default)/documents/published_microsites?t=${Date.now()}`, {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' }
+    });
     if (res.ok) {
       const json = await res.json();
       if (Array.isArray(json.documents)) {
@@ -425,7 +498,9 @@ export function subscribeToPublishedMicrosite(slug, onUpdate, onDelete) {
           // Dokumen dihapus di Cloud Firestore
           if (onDelete) onDelete();
         }
-      }, () => {});
+      }, (err) => {
+        console.warn('Firestore snapshot subscription notice:', err);
+      });
       return unsubscribe;
     } catch (err) {}
   }
@@ -439,7 +514,19 @@ export async function deleteMicrositeFromCloud(slug, siteId) {
   if (!slug) return;
   const cleanSlug = sanitizeSlug(slug);
 
-  // 1. Bersihkan cache lokal & catat ke deleted list
+  // 1. Hapus dari Firestore Cloud
+  if (isFirebaseConfigured() && db) {
+    try {
+      await deleteDoc(doc(db, 'published_microsites', cleanSlug));
+      if (siteId) {
+        await deleteDoc(doc(db, 'microsites_registry', siteId));
+      }
+    } catch (err) {
+      console.warn('Firestore delete warning:', err);
+    }
+  }
+
+  // 2. Bersihkan cache lokal & catat ke deleted list
   if (typeof localStorage !== 'undefined') {
     localStorage.removeItem(`upb_site_slug_${cleanSlug}`);
     try {
@@ -452,7 +539,7 @@ export async function deleteMicrositeFromCloud(slug, siteId) {
     } catch (e) {}
   }
 
-  // 2. Broadcast Channel pembaruan penghapusan ke semua tab terbuka
+  // 3. Broadcast Channel pembaruan penghapusan ke semua tab terbuka
   try {
     const channel = getBroadcastChannel();
     if (channel) {
@@ -460,18 +547,8 @@ export async function deleteMicrositeFromCloud(slug, siteId) {
     }
   } catch (e) {}
 
-  // 3. Dispatch window custom event
+  // 4. Dispatch window custom event
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('upb-microsite-deleted', { detail: { slug: cleanSlug } }));
-  }
-
-  // 4. Hapus dari Firestore Cloud
-  if (isFirebaseConfigured() && db) {
-    try {
-      deleteDoc(doc(db, 'published_microsites', cleanSlug)).catch(() => {});
-      if (siteId) {
-        deleteDoc(doc(db, 'microsites_registry', siteId)).catch(() => {});
-      }
-    } catch (err) {}
   }
 }

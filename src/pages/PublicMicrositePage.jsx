@@ -177,11 +177,10 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
     }
   }, [mergedData.profile, currentSite?.data]);
 
-  // Check if site data is available
+  // Check if site data is available from Cloud Firestore
   const hasValidData = Boolean(
     cloudSite?.data || 
-    initialSite?.data || 
-    (typeof localStorage !== 'undefined' && localStorage.getItem(`upb_site_slug_${activeSlug}`))
+    initialSite?.data
   );
 
   // Loading state while resolving live cloud data

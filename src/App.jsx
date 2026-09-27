@@ -203,23 +203,16 @@ function MainAppContent() {
       if (Array.isArray(cloudSites) && cloudSites.length > 0) {
         setMicrosites(prevList => {
           const map = new Map();
-          // 1. Put current local list
-          prevList.forEach(s => {
-            if (s.slug) map.set(s.slug, s);
-          });
-          // 2. Merge / add all cloud-published microsites
+          // 1. Utamakan data dari Cloud Firestore (Single Source of Truth)
           cloudSites.forEach(cs => {
             if (cs.slug) {
-              const existing = map.get(cs.slug);
-              if (!existing) {
-                map.set(cs.slug, cs);
-              } else {
-                map.set(cs.slug, {
-                  ...existing,
-                  ...cs,
-                  data: cs.data || existing.data
-                });
-              }
+              map.set(cs.slug, cs);
+            }
+          });
+          // 2. Pertahankan entri lokal hanya jika belum ada di cloud
+          prevList.forEach(s => {
+            if (s.slug && !map.has(s.slug)) {
+              map.set(s.slug, s);
             }
           });
           const merged = Array.from(map.values());
@@ -576,11 +569,11 @@ function MainAppContent() {
   // ----------------------------------------------------------------------
   if (route === 'public-site') {
     const publicSlug = getPublicSlug();
-    const publicSite = microsites.find(s => s.slug === publicSlug) || {
+    const publicSite = {
       id: `site-${publicSlug}`,
       slug: publicSlug,
       category: 'Portal Resmi',
-      data: null // Leave null so PublicMicrositePage loads actual live cloud data, and renders 404 if not found
+      data: null // Force loading directly from Google Cloud Firestore server
     };
 
     return (
