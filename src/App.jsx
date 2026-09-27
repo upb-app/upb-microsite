@@ -28,6 +28,7 @@ import { recordLinkClick } from './services/analyticsService';
 import { 
   publishMicrositeToCloud, 
   deleteMicrositeFromCloud, 
+  fetchAllPublishedMicrositesFromCloud,
   sanitizeSlug, 
   getShareableMicrositeUrl 
 } from './services/micrositeService';
@@ -196,6 +197,50 @@ function MainAppContent() {
   // Route State: 'home' | 'dashboard' | 'login' | 'public-site' | 'not-found'
   const [route, setRoute] = useState(determineRoute);
 
+  const handleSyncFromCloud = async () => {
+    try {
+      const cloudSites = await fetchAllPublishedMicrositesFromCloud();
+      if (Array.isArray(cloudSites) && cloudSites.length > 0) {
+        setMicrosites(prevList => {
+          const map = new Map();
+          // 1. Put current local list
+          prevList.forEach(s => {
+            if (s.slug) map.set(s.slug, s);
+          });
+          // 2. Merge / add all cloud-published microsites
+          cloudSites.forEach(cs => {
+            if (cs.slug) {
+              const existing = map.get(cs.slug);
+              if (!existing) {
+                map.set(cs.slug, cs);
+              } else {
+                map.set(cs.slug, {
+                  ...existing,
+                  ...cs,
+                  data: cs.data || existing.data
+                });
+              }
+            }
+          });
+          const merged = Array.from(map.values());
+          try {
+            localStorage.setItem(MICROSITES_STORAGE_KEY, JSON.stringify(merged));
+          } catch (e) {}
+          return merged;
+        });
+        return cloudSites.length;
+      }
+    } catch (err) {
+      console.error('Error syncing from cloud:', err);
+    }
+    return 0;
+  };
+
+  // Automatically pull all published microsites from Cloud on mount
+  useEffect(() => {
+    handleSyncFromCloud();
+  }, []);
+
   // Listen for browser navigation changes
   useEffect(() => {
     const checkRoute = () => {
@@ -207,15 +252,9 @@ function MainAppContent() {
 
     // Auto-sync all current microsites to Firestore Cloud in background
     if (microsites && microsites.length > 0) {
-      const activeSlugs = microsites.map(s => s.slug);
       microsites.forEach(site => {
         publishMicrositeToCloud(site).catch(() => {});
       });
-
-      // If 'pmb-utama' is not among active admin microsites, delete from Cloud Firestore
-      if (!activeSlugs.includes('pmb-utama')) {
-        deleteMicrositeFromCloud('pmb-utama').catch(() => {});
-      }
     }
 
     return () => {
@@ -814,6 +853,7 @@ function MainAppContent() {
         onDuplicateSite={handleDuplicateSite}
         onDeleteSite={handleDeleteSite}
         onUpdateSite={handleUpdateSite}
+        onSyncFromCloud={handleSyncFromCloud}
       />
 
       {/* Publish & Share Modal */}

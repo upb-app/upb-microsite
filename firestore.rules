@@ -28,18 +28,32 @@ service cloud.firestore {
       allow create, update, delete: if isSuperAdmin();
     }
 
-    // Koleksi Microsite Config: Publik hanya bisa membaca, hanya Admin/Superadmin yang bisa menulis
-    match /microsites/{micrositeId} {
-      allow read: if true; // Publik dapat melihat microsite
-      allow write: if isAuthenticated(); // Hanya user terautentikasi
-      allow delete: if isSuperAdmin();
+    // Koleksi Microsite Config & Published Microsites (Akses Publik Global)
+    match /published_microsites/{slug} {
+      allow read: if true;
+      allow write: if true;
     }
 
-    // Koleksi Security Audit Logs: Hanya Superadmin yang bisa membaca, create hanya lewat sistem terautentikasi
+    match /microsites_registry/{siteId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    match /microsites/{micrositeId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Koleksi Security Audit Logs
     match /audit_logs/{logId} {
       allow read: if isSuperAdmin();
       allow create: if isAuthenticated();
-      allow update, delete: if false; // Immutable audit trail
+      allow update, delete: if false;
+    }
+
+    // Koleksi Analytics
+    match /analytics_events/{eventId} {
+      allow read, write: if true;
     }
 
     // Default deny all other collections

@@ -8,6 +8,8 @@ import {
   doc, 
   setDoc, 
   getDoc, 
+  getDocs,
+  collection,
   deleteDoc, 
   onSnapshot 
 } from 'firebase/firestore';
@@ -345,6 +347,55 @@ export async function fetchPublishedMicrosite(slug) {
   }
 
   return null;
+}
+
+/**
+ * Ambil semua microsite terdaftar dari Cloud Firestore secara lengkap
+ */
+export async function fetchAllPublishedMicrositesFromCloud() {
+  const sites = [];
+  const slugsSeen = new Set();
+
+  // 1. Ambil via Firebase SDK
+  if (isFirebaseConfigured() && db) {
+    try {
+      const snap = await getDocs(collection(db, 'published_microsites'));
+      snap.forEach((docSnap) => {
+        if (docSnap.exists()) {
+          const d = docSnap.data();
+          if (d && d.slug && !slugsSeen.has(d.slug)) {
+            slugsSeen.add(d.slug);
+            sites.push(d);
+          }
+        }
+      });
+      if (sites.length > 0) return sites;
+    } catch (e) {
+      console.warn('Firestore SDK getDocs warning, fallback to REST:', e);
+    }
+  }
+
+  // 2. Fallback REST API Firestore
+  try {
+    const res = await fetch('https://firestore.googleapis.com/v1/projects/upb-microsite/databases/(default)/documents/published_microsites');
+    if (res.ok) {
+      const json = await res.json();
+      if (Array.isArray(json.documents)) {
+        for (const docItem of json.documents) {
+          const slug = docItem.name.split('/').pop();
+          if (slug && !slugsSeen.has(slug)) {
+            const single = await fetchPublishedMicrosite(slug);
+            if (single && single.slug) {
+              slugsSeen.add(single.slug);
+              sites.push(single);
+            }
+          }
+        }
+      }
+    }
+  } catch (err) {}
+
+  return sites;
 }
 
 /**

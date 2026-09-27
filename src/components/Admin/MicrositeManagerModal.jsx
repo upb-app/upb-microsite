@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Globe, 
   Plus, 
@@ -13,7 +13,8 @@ import {
   FolderPlus,
   AlertCircle,
   Radio,
-  Edit2
+  Edit2,
+  RefreshCw
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import confetti from 'canvas-confetti';
@@ -28,13 +29,41 @@ export default function MicrositeManagerModal({
   onCreateSite,
   onDuplicateSite,
   onDeleteSite,
-  onUpdateSite
+  onUpdateSite,
+  onSyncFromCloud
 }) {
   const { isDark } = useTheme();
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [isCreateFormOpen, setIsCreateFormOpen] = useState(false);
   const [copiedId, setCopiedId] = useState(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState('');
+
+  // Auto-sync from cloud when modal opens
+  useEffect(() => {
+    if (isOpen && typeof onSyncFromCloud === 'function') {
+      setIsSyncing(true);
+      onSyncFromCloud().finally(() => {
+        setIsSyncing(false);
+      });
+    }
+  }, [isOpen]);
+
+  const handleManualSync = async () => {
+    if (typeof onSyncFromCloud !== 'function' || isSyncing) return;
+    setIsSyncing(true);
+    try {
+      const count = await onSyncFromCloud();
+      setSyncMessage(`${count} situs terhubung ke cloud`);
+      setTimeout(() => setSyncMessage(''), 3000);
+    } catch (e) {
+      setSyncMessage('Gagal sinkron');
+      setTimeout(() => setSyncMessage(''), 3000);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   // Form State
   const [newTitle, setNewTitle] = useState('');
@@ -170,6 +199,27 @@ export default function MicrositeManagerModal({
           </div>
 
           <div className="flex items-center gap-2">
+            {syncMessage && (
+              <span className="text-xs font-bold text-emerald-500 animate-fadeIn hidden sm:inline">
+                {syncMessage}
+              </span>
+            )}
+
+            <button
+              type="button"
+              onClick={handleManualSync}
+              disabled={isSyncing}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold transition transform active:scale-95 ${
+                isDark 
+                  ? 'border-blue-500/30 text-blue-400 hover:bg-blue-500/10 bg-blue-500/5' 
+                  : 'border-blue-200 text-blue-600 hover:bg-blue-50 bg-white'
+              }`}
+              title="Ambil seluruh microsite yang tersimpan di Cloud Firestore"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-blue-500' : ''}`} />
+              <span>{isSyncing ? 'Menyinkronkan...' : 'Sinkronkan Cloud'}</span>
+            </button>
+
             <button
               onClick={() => setIsCreateFormOpen(!isCreateFormOpen)}
               className="flex items-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-md transition transform active:scale-95"
