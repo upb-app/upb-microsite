@@ -578,11 +578,26 @@ function MainAppContent() {
   // ----------------------------------------------------------------------
   if (route === 'public-site') {
     const publicSlug = getPublicSlug();
-    const publicSite = {
+    
+    // Look up existing site in local state, default list, or cached storage for zero-latency initial paint
+    let initialSite = microsites.find(s => s.slug === publicSlug) ||
+      DEFAULT_MICROSITES_LIST.find(s => s.slug === publicSlug);
+
+    if (!initialSite && typeof localStorage !== 'undefined') {
+      try {
+        const cached = localStorage.getItem(`upb_site_slug_${publicSlug}`);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && parsed.data) initialSite = parsed;
+        }
+      } catch (e) {}
+    }
+
+    const publicSite = initialSite || {
       id: `site-${publicSlug}`,
       slug: publicSlug,
       category: 'Portal Resmi',
-      data: null // Force loading directly from Google Cloud Firestore server
+      data: null
     };
 
     return (

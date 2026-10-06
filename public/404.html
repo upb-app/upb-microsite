@@ -14,7 +14,15 @@
     .animate-bounce-slow {
       animation: bounce-slow 3s ease-in-out infinite;
     }
-  </style>
+  <script>
+    // Silently forward clean microsite URLs to the SPA router if served by static 404 handler
+    (function() {
+      var path = window.location.pathname;
+      if (path && path !== '/' && !path.includes('.') && !path.startsWith('/api')) {
+        window.location.replace('/#' + path + window.location.search);
+      }
+    })();
+  </script>
 </head>
 <body class="bg-[#040914] text-slate-100 font-sans min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
   

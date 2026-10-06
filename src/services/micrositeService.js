@@ -16,6 +16,7 @@ import {
   deleteDoc, 
   onSnapshot 
 } from 'firebase/firestore';
+import { DEFAULT_MICROSITES_LIST } from '../data/defaultData.js';
 
 export const RESERVED_SLUGS = [
   'dasbor',
@@ -449,48 +450,83 @@ export async function fetchPublishedMicrosite(slug) {
     }
   } catch (e) {}
 
-  // 1. Ambil data terbaru langsung dari Cloud Firestore Server (Bypass Browser Cache)
-  if (isFirebaseConfigured() && db) {
+  // Function to fetch via Firestore REST API (Ultra-fast CDN HTTP GET, ~200-400ms)
+  const fetchViaRest = async () => {
     try {
-      const docRef = doc(db, 'published_microsites', cleanSlug);
-      let docSnap;
+      const res = await fetch(`https://firestore.googleapis.com/v1/projects/upb-microsite/databases/(default)/documents/published_microsites/${cleanSlug}?t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' }
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json && json.fields) {
+          const parsed = decodeFirestoreFields(json.fields);
+          if (parsed && parsed.data) {
+            if (typeof localStorage !== 'undefined') {
+              localStorage.setItem(`upb_site_slug_${cleanSlug}`, JSON.stringify(parsed));
+            }
+            return parsed;
+          }
+        }
+      }
+    } catch (_e) {}
+    return null;
+  };
+
+  // Function to fetch via Firebase JS SDK
+  const fetchViaSdk = async () => {
+    if (isFirebaseConfigured() && db) {
       try {
-        docSnap = await getDocFromServer(docRef);
-      } catch (_serverErr) {
-        docSnap = await getDoc(docRef);
-      }
-
-      if (docSnap && docSnap.exists()) {
-        const liveData = docSnap.data();
-        if (liveData && typeof localStorage !== 'undefined') {
-          localStorage.setItem(`upb_site_slug_${cleanSlug}`, JSON.stringify(liveData));
+        const docRef = doc(db, 'published_microsites', cleanSlug);
+        let docSnap;
+        try {
+          docSnap = await getDocFromServer(docRef);
+        } catch (_serverErr) {
+          docSnap = await getDoc(docRef);
         }
-        return liveData;
-      }
-    } catch (err) {
-      console.warn('Firestore live getDoc notice, falling back to REST:', err);
+        if (docSnap && docSnap.exists()) {
+          const liveData = docSnap.data();
+          if (liveData && liveData.data) {
+            if (typeof localStorage !== 'undefined') {
+              localStorage.setItem(`upb_site_slug_${cleanSlug}`, JSON.stringify(liveData));
+            }
+            return liveData;
+          }
+        }
+      } catch (_err) {}
     }
-  }
+    return null;
+  };
 
-  // 2. Fallback REST API Firestore Server dengan Cache-Buster (?t=timestamp)
+  // 1. Dual-Channel Concurrent Race (Fastest Wins)
+  // Both channels run in parallel. Whichever returns valid data first resolves immediately.
   try {
-    const res = await fetch(`https://firestore.googleapis.com/v1/projects/upb-microsite/databases/(default)/documents/published_microsites/${cleanSlug}?t=${Date.now()}`, {
-      cache: 'no-store',
-      headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' }
-    });
-    if (res.ok) {
-      const json = await res.json();
-      if (json && json.fields) {
-        const parsed = decodeFirestoreFields(json.fields);
-        if (parsed && typeof localStorage !== 'undefined') {
-          localStorage.setItem(`upb_site_slug_${cleanSlug}`, JSON.stringify(parsed));
-        }
-        return parsed;
-      }
-    }
-  } catch (e) {}
+    const cloudResult = await new Promise((resolve) => {
+      let resolved = false;
+      let finishedCount = 0;
 
-  // 3. Fallback parameter URL ?d=... (Universal Sync untuk Incognito & Device Luar)
+      const handleResult = (data) => {
+        if (!resolved && data && data.data) {
+          resolved = true;
+          resolve(data);
+        } else {
+          finishedCount++;
+          if (finishedCount >= 2 && !resolved) {
+            resolve(null);
+          }
+        }
+      };
+
+      fetchViaRest().then(handleResult).catch(() => handleResult(null));
+      fetchViaSdk().then(handleResult).catch(() => handleResult(null));
+    });
+
+    if (cloudResult && cloudResult.data) {
+      return cloudResult;
+    }
+  } catch (_raceErr) {}
+
+  // 2. Fallback parameter URL ?d=... (Universal Sync untuk Incognito & Device Luar)
   if (typeof window !== 'undefined') {
     try {
       const urlParams = new URLSearchParams(window.location.search);
@@ -504,22 +540,29 @@ export async function fetchPublishedMicrosite(slug) {
     } catch (e) {}
   }
 
-  // 4. Fallback terakhir: Cache Lokal hanya jika offline tanpa jaringan internet
+  // 3. Fallback Local Storage
   try {
     if (typeof localStorage !== 'undefined') {
       const cached = localStorage.getItem(`upb_site_slug_${cleanSlug}`);
       if (cached) {
-        return JSON.parse(cached);
+        const parsed = JSON.parse(cached);
+        if (parsed && parsed.data) return parsed;
       }
       
       const multiListRaw = localStorage.getItem('upb_multi_microsites_list_v2');
       if (multiListRaw) {
         const list = JSON.parse(multiListRaw);
         const match = list.find(s => s.slug === cleanSlug);
-        if (match) return match;
+        if (match && match.data) return match;
       }
     }
   } catch (e) {}
+
+  // 4. Fallback Default Microsites List (Guarantees default official sites never fail)
+  const defaultMatch = DEFAULT_MICROSITES_LIST.find(s => s.slug === cleanSlug);
+  if (defaultMatch && defaultMatch.data) {
+    return defaultMatch;
+  }
 
   return null;
 }
@@ -594,7 +637,7 @@ export function subscribeToPublishedMicrosite(slug, onUpdate, onDelete) {
       const unsubscribe = onSnapshot(docRef, (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data();
-          if (onUpdate) onUpdate(data);
+          if (onUpdate && data && data.data) onUpdate(data);
           try {
             if (typeof localStorage !== 'undefined') {
               localStorage.setItem(`upb_site_slug_${cleanSlug}`, JSON.stringify(data));
@@ -602,7 +645,11 @@ export function subscribeToPublishedMicrosite(slug, onUpdate, onDelete) {
           } catch (e) {}
         } else {
           // Dokumen dihapus di Cloud Firestore
-          if (onDelete) onDelete();
+          // Cegah penghapusan palsu pada microsite default
+          const isDefault = DEFAULT_MICROSITES_LIST.some(s => s.slug === cleanSlug);
+          if (!isDefault && onDelete) {
+            onDelete();
+          }
         }
       }, (err) => {
         console.warn('Firestore snapshot subscription notice:', err);

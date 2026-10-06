@@ -18,22 +18,53 @@ import {
 } from '../services/micrositeService';
 
 export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
-  const [cloudSite, setCloudSite] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const activeSlug = sanitizeSlug(initialSite?.slug || '');
+
+  // Pre-seed cloudSite instantly if available in initialSite, local storage, or defaults
+  const [cloudSite, setCloudSite] = useState(() => {
+    if (initialSite?.data) return initialSite;
+    if (typeof localStorage !== 'undefined' && activeSlug) {
+      try {
+        const cached = localStorage.getItem(`upb_site_slug_${activeSlug}`);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && parsed.data) return parsed;
+        }
+      } catch (e) {}
+    }
+    const defaultMatch = DEFAULT_MICROSITES_LIST.find(s => s.slug === activeSlug);
+    if (defaultMatch && defaultMatch.data) return defaultMatch;
+    return null;
+  });
+
+  const [isLoading, setIsLoading] = useState(() => {
+    if (initialSite?.data) return false;
+    if (typeof localStorage !== 'undefined' && activeSlug) {
+      try {
+        const cached = localStorage.getItem(`upb_site_slug_${activeSlug}`);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && parsed.data) return false;
+        }
+      } catch (e) {}
+    }
+    const defaultMatch = DEFAULT_MICROSITES_LIST.find(s => s.slug === activeSlug);
+    if (defaultMatch && defaultMatch.data) return false;
+    return true;
+  });
+
   const [copied, setCopied] = useState(false);
   const [isQrOpen, setIsQrOpen] = useState(false);
-
-  const activeSlug = sanitizeSlug(initialSite?.slug || '');
 
   // 1. Real-time Cloud Firestore & Cross-Tab Subscription
   useEffect(() => {
     if (!activeSlug) return;
     let isMounted = true;
 
-    // Safety timeout: Maximum 800ms loading, then render whatever data is resolved
+    // Safety timeout: 7000ms network timeout before giving up on cold connections
     const safetyTimer = setTimeout(() => {
       if (isMounted) setIsLoading(false);
-    }, 800);
+    }, 7000);
 
     // Fetch data terkini dari Firebase Cloud Firestore & Universal Decoder
     fetchPublishedMicrosite(activeSlug).then((data) => {
@@ -54,7 +85,8 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
         setIsLoading(false);
       }
     }, () => {
-      if (isMounted) {
+      const isDefault = DEFAULT_MICROSITES_LIST.some(s => s.slug === activeSlug);
+      if (!isDefault && isMounted) {
         setCloudSite(null);
         setIsLoading(false);
       }
@@ -144,8 +176,9 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
     };
   }, [activeSlug]);
 
-  // Merge Priority: Cloud Data -> Initial Passed Site (if has actual data)
-  const currentSite = cloudSite || (initialSite?.data ? initialSite : null);
+  // Merge Priority: Cloud Data -> Initial Passed Site (if has actual data) -> Default Official Microsite
+  const defaultSite = DEFAULT_MICROSITES_LIST.find(s => s.slug === activeSlug);
+  const currentSite = cloudSite || (initialSite?.data ? initialSite : null) || defaultSite || null;
   const currentSiteId = currentSite?.id || `site-${activeSlug}`;
 
   // 2. Record page view on mount (Unconditionally declared hook)
@@ -205,13 +238,10 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
     }
   }, [mergedData.profile, currentSite?.data]);
 
-  // Check if site data is available from Cloud Firestore
-  const hasValidData = Boolean(
-    cloudSite?.data || 
-    initialSite?.data
-  );
+  // Check if site data is available from Cloud Firestore, props, or default list
+  const hasValidData = Boolean(currentSite?.data);
 
-  // Loading state while resolving live cloud data
+  // Loading state while resolving live cloud data (only shown for newly created custom slugs without any local/default data)
   if (isLoading && !hasValidData) {
     return (
       <div className="min-h-screen bg-[#040914] text-white flex flex-col items-center justify-center space-y-4 p-4 font-sans">
@@ -228,7 +258,7 @@ export default function PublicMicrositePage({ site: initialSite, onGoHome }) {
     );
   }
 
-  // If loading finished and NO data found in Cloud/Storage, render 404
+  // If loading finished and NO data found in Cloud, Storage, or Defaults, render 404
   if (!isLoading && !hasValidData) {
     return <NotFoundPage onGoHome={onGoHome} />;
   }
